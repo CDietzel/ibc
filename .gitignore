@@ -148,3 +148,6 @@ static
 
 # Hydra Output
 outputs/*
+
+# TFRecord files
+*.tfrecord
