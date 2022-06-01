@@ -18,25 +18,35 @@ import tensorflow.compat.v2 as tf
 
 
 class MLPDropoutLayer(tf.keras.layers.Layer):
-  """MLP with dropout."""
+    """MLP with dropout."""
 
-  def __init__(
-      self, hidden_sizes, rate, kernel_initializer, bias_initializer, dense,
-      activation='relu', **kwargs):
-    super(MLPDropoutLayer, self).__init__(**kwargs)
-    self._fc_layers = []
-    self._dropouts = []
-    for l in range(len(hidden_sizes)):
-      self._fc_layers.append(dense(
-          hidden_sizes[l],
-          activation=activation,
-          kernel_initializer=kernel_initializer,
-          bias_initializer=bias_initializer))
-      self._dropouts.append(tf.keras.layers.Dropout(rate))
+    def __init__(
+        self,
+        hidden_sizes,
+        rate,
+        kernel_initializer,
+        bias_initializer,
+        dense,
+        activation="relu",
+        **kwargs
+    ):
+        super(MLPDropoutLayer, self).__init__(**kwargs)
+        self._fc_layers = []
+        self._dropouts = []
+        for l in range(len(hidden_sizes)):
+            self._fc_layers.append(
+                dense(
+                    hidden_sizes[l],
+                    activation=activation,
+                    kernel_initializer=kernel_initializer,
+                    bias_initializer=bias_initializer,
+                )
+            )
+            self._dropouts.append(tf.keras.layers.Dropout(rate))
 
-  def call(self, x, training):
-    # Do forward pass through mlp layers.
-    for l in range(len(self._fc_layers)):
-      x = self._fc_layers[l](x, training=training)
-      x = self._dropouts[l](x, training=training)
-    return x
+    def call(self, x, training):
+        # Do forward pass through mlp layers.
+        for l in range(len(self._fc_layers)):
+            x = self._fc_layers[l](x, training=training)
+            x = self._dropouts[l](x, training=training)
+        return x

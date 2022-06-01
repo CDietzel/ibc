@@ -30,85 +30,88 @@ from tf_agents.utils import common
 
 @gin.configurable
 class MdnBehavioralCloningAgent(base_agent.BehavioralCloningAgent):
-  """Implements Mixture Density Network-based behavior cloning."""
+    """Implements Mixture Density Network-based behavior cloning."""
 
-  def __init__(self,
-               time_step_spec,
-               action_spec,
-               action_sampling_spec,
-               cloning_network,
-               optimizer,
-               obs_norm_layer=None,
-               act_norm_layer=None,
-               act_denorm_layer=None,
-               debug_summaries = False,
-               summarize_grads_and_vars = False,
-               train_step_counter = None,
-               name = None):
-    # tf.Module dependency allows us to capture checkpints and saved models with
-    # the agent.
-    tf.Module.__init__(self, name=name)
-
-    self._action_sampling_spec = action_sampling_spec
-    self._obs_norm_layer = obs_norm_layer
-    self._act_norm_layer = act_norm_layer
-    self._act_denorm_layer = act_denorm_layer
-    self.cloning_network = cloning_network
-    self.cloning_network.create_variables(training=False)
-
-    self._optimizer = optimizer
-
-    collect_policy = mdn_policy.MdnPolicyWrapper(time_step_spec, action_spec,
-                                                 cloning_network,
-                                                 self._obs_norm_layer)
-    policy = collect_policy
-
-    super(MdnBehavioralCloningAgent, self).__init__(
+    def __init__(
+        self,
         time_step_spec,
         action_spec,
-        policy,
-        collect_policy,
-        train_sequence_length=None,
-        debug_summaries=debug_summaries,
-        summarize_grads_and_vars=summarize_grads_and_vars,
-        train_step_counter=train_step_counter)
+        action_sampling_spec,
+        cloning_network,
+        optimizer,
+        obs_norm_layer=None,
+        act_norm_layer=None,
+        act_denorm_layer=None,
+        debug_summaries=False,
+        summarize_grads_and_vars=False,
+        train_step_counter=None,
+        name=None,
+    ):
+        # tf.Module dependency allows us to capture checkpints and saved models with
+        # the agent.
+        tf.Module.__init__(self, name=name)
 
-  def _loss(self,
-            experience,
-            variables_to_train=None,
-            weights = None,
-            training = False):
-    observations, actions = experience
+        self._action_sampling_spec = action_sampling_spec
+        self._obs_norm_layer = obs_norm_layer
+        self._act_norm_layer = act_norm_layer
+        self._act_denorm_layer = act_denorm_layer
+        self.cloning_network = cloning_network
+        self.cloning_network.create_variables(training=False)
 
-    # Use first observation to figure out batch/time sizes as they should be the
-    # same across all observations.
-    single_obs = tf.nest.flatten(observations)[0]
-    batch_size = tf.shape(single_obs)[0]
+        self._optimizer = optimizer
 
-    with tf.GradientTape(watch_accessed_variables=False) as tape:
-      tape.watch(variables_to_train)
-      with tf.name_scope('loss'):
-        network_state = self.cloning_network.get_initial_state(batch_size)
+        collect_policy = mdn_policy.MdnPolicyWrapper(
+            time_step_spec, action_spec, cloning_network, self._obs_norm_layer
+        )
+        policy = collect_policy
 
-        bc_output, _ = self.cloning_network(
-            observations, training=training, network_state=network_state)
+        super(MdnBehavioralCloningAgent, self).__init__(
+            time_step_spec,
+            action_spec,
+            policy,
+            collect_policy,
+            train_sequence_length=None,
+            debug_summaries=debug_summaries,
+            summarize_grads_and_vars=summarize_grads_and_vars,
+            train_step_counter=train_step_counter,
+        )
 
-        per_example_loss = -bc_output.log_prob(actions)
+    def _loss(self, experience, variables_to_train=None, weights=None, training=False):
+        observations, actions = experience
 
-        agg_loss = common.aggregate_losses(
-            per_example_loss=per_example_loss,
-            sample_weight=weights,
-            regularization_loss=self.cloning_network.losses)
+        # Use first observation to figure out batch/time sizes as they should be the
+        # same across all observations.
+        single_obs = tf.nest.flatten(observations)[0]
+        batch_size = tf.shape(single_obs)[0]
 
-        total_loss = agg_loss.total_loss
+        with tf.GradientTape(watch_accessed_variables=False) as tape:
+            tape.watch(variables_to_train)
+            with tf.name_scope("loss"):
+                network_state = self.cloning_network.get_initial_state(batch_size)
 
-        losses_dict = {'mdn_total_loss': total_loss}
+                bc_output, _ = self.cloning_network(
+                    observations, training=training, network_state=network_state
+                )
 
-        common.summarize_scalar_dict(
-            losses_dict, step=self.train_step_counter, name_scope='Losses/')
+                per_example_loss = -bc_output.log_prob(actions)
 
-        if self._debug_summaries:
-          common.generate_tensor_summaries('MDN_LOSS', per_example_loss,
-                                           self.train_step_counter)
+                agg_loss = common.aggregate_losses(
+                    per_example_loss=per_example_loss,
+                    sample_weight=weights,
+                    regularization_loss=self.cloning_network.losses,
+                )
 
-    return tf_agent.LossInfo(total_loss, ()), tape
+                total_loss = agg_loss.total_loss
+
+                losses_dict = {"mdn_total_loss": total_loss}
+
+                common.summarize_scalar_dict(
+                    losses_dict, step=self.train_step_counter, name_scope="Losses/"
+                )
+
+                if self._debug_summaries:
+                    common.generate_tensor_summaries(
+                        "MDN_LOSS", per_example_loss, self.train_step_counter
+                    )
+
+        return tf_agent.LossInfo(total_loss, ()), tape

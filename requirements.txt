@@ -1,0 +1,50 @@
+#INSTALL INSTRUCTIONS:
+#python3 -m venv venv
+#ACTIVATE THE VIRTUAL ENVIRONMENT
+#python3 -m pip install --upgrade pip
+#pip install wheel
+#pip install -r requirements.txt
+
+tensorflow==2.6.0  
+absl-py==0.12.0
+gin-config==0.4.0
+matplotlib==3.4.3
+mediapy==1.0.3
+opencv-python==4.5.3.56
+pybullet==3.1.6
+scipy==1.7.1
+keras==2.6.0
+tf-agents==0.11.0rc0
+tqdm==4.62.2
+protobuf==3.20.1 #Added Requirement because protobuf version 4 has breaking changes
+
+# IF YOU HAVE ISSUES WITH THE UNIT TESTS, PIN THE DEPENDENCIES (UNCOMMENT SOME OF THE LINES BELOW)
+# THEN RUN pip install --ignore-installed --no-cache-dir -r requirements.txt
+# you will have to experiment a bit with what combination works
+# All unpinned dependencies were good as of roughly May 26, 2022
+
+#gym~=0.17.0 #TRY CHANGING THIS TO 0.24.0, THEN TRY 0.23.1. 
+#grpcio~=1.37.0
+#kiwisolver~=1.0.0
+#pillow~=6.2.0
+
+#UNLIKELY TO NEED PINNING
+#requests~=2.0
+#oauthlib~=3.0.0 
+#zipp~=0.5 
+#certifi~=2017.4.17 
+#ptyprocess~=0.5 
+#importlib-metadata~=4.4 
+#requests-oauthlib~=0.7.0 
+#pyasn1-modules~=0.2.1 
+#jedi~=0.16 
+#pexpect~=4.4 
+#traitlets~=5.0
+#pygments~=2.4.0 
+#markdown~=2.6.8 
+#tensorboard-plugin-wit~=1.6.0 
+#werkzeug~=1.0.1
+#cloudpickle~=1.3 #
+#python-dateutil~=2.7
+#pyparsing~=2.2.1 
+#cycler~=0.10

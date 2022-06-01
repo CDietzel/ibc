@@ -18,31 +18,35 @@ import tensorflow as tf
 
 
 def get_conv_maxpool(target_height, target_width, nchannels):
-  """Instantiates simple cnn architecture."""
-  # Determine proper input shape
-  input_shape = (target_height, target_width, nchannels)
-  img_input = tf.keras.layers.Input(shape=input_shape)
-  # [96, 128, 32].
-  x = tf.keras.layers.Conv2D(
-      32, 3, padding='same', activation=tf.nn.relu, name='conv1')(img_input)
-  # [96, 128, 32].
-  x = tf.keras.layers.MaxPool2D()(x)
-  # [48, 64, 32].
-  x = tf.keras.layers.Conv2D(
-      64, 3, padding='same', activation=tf.nn.relu, name='conv2')(x)
-  # [48, 64, 64].
-  x = tf.keras.layers.MaxPool2D()(x)
-  # [24, 32, 64].
-  x = tf.keras.layers.Conv2D(
-      128, 3, padding='same', activation=tf.nn.relu, name='conv3')(x)
-  # [24, 32, 128].
-  x = tf.keras.layers.MaxPool2D()(x)
-  # [12, 16, 128].
-  x = tf.keras.layers.Conv2D(
-      256, 3, padding='same', activation=tf.nn.relu, name='conv4')(x)
-  # [12, 16, 256].
-  x = tf.keras.layers.MaxPool2D()(x)
-  # [6, 8, 256].
-  x = tf.keras.layers.GlobalAveragePooling2D()(x)
-  # [256]
-  return tf.keras.models.Model(img_input, x, name='conv_maxpool')
+    """Instantiates simple cnn architecture."""
+    # Determine proper input shape
+    input_shape = (target_height, target_width, nchannels)
+    img_input = tf.keras.layers.Input(shape=input_shape)
+    # [96, 128, 32].
+    x = tf.keras.layers.Conv2D(
+        32, 3, padding="same", activation=tf.nn.relu, name="conv1"
+    )(img_input)
+    # [96, 128, 32].
+    x = tf.keras.layers.MaxPool2D()(x)
+    # [48, 64, 32].
+    x = tf.keras.layers.Conv2D(
+        64, 3, padding="same", activation=tf.nn.relu, name="conv2"
+    )(x)
+    # [48, 64, 64].
+    x = tf.keras.layers.MaxPool2D()(x)
+    # [24, 32, 64].
+    x = tf.keras.layers.Conv2D(
+        128, 3, padding="same", activation=tf.nn.relu, name="conv3"
+    )(x)
+    # [24, 32, 128].
+    x = tf.keras.layers.MaxPool2D()(x)
+    # [12, 16, 128].
+    x = tf.keras.layers.Conv2D(
+        256, 3, padding="same", activation=tf.nn.relu, name="conv4"
+    )(x)
+    # [12, 16, 256].
+    x = tf.keras.layers.MaxPool2D()(x)
+    # [6, 8, 256].
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)
+    # [256]
+    return tf.keras.models.Model(img_input, x, name="conv_maxpool")

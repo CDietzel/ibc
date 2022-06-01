@@ -19,11 +19,11 @@ import ibc.environments.block_pushing.oracles.reach_oracle as reach_oracle_modul
 
 
 def get_oracle(env, task):
-  """Gets an oracle for a given task."""
-  if task == 'REACH':
-    oracle_policy = reach_oracle_module.ReachOracle(env)
-  elif task == 'PUSH':
-    oracle_policy = oriented_push_oracle_module.OrientedPushOracle(env)
-  else:
-    raise ValueError('oracle not registered.')
-  return oracle_policy
+    """Gets an oracle for a given task."""
+    if task == "REACH":
+        oracle_policy = reach_oracle_module.ReachOracle(env)
+    elif task == "PUSH":
+        oracle_policy = oriented_push_oracle_module.OrientedPushOracle(env)
+    else:
+        raise ValueError("oracle not registered.")
+    return oracle_policy

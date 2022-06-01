@@ -20,15 +20,16 @@ from typing import Any
 
 @dataclasses.dataclass
 class PushingInfo:
-  """Holds onto info necessary for pushing state machine."""
-  xy_block: Any = None
-  xy_ee: Any = None
-  xy_pre_block: Any = None
-  xy_delta_to_nexttoblock: Any = None
-  xy_delta_to_touchingblock: Any = None
-  xy_dir_block_to_ee: Any = None
-  theta_threshold_to_orient: Any = None
-  theta_threshold_flat_enough: Any = None
-  theta_error: Any = None
-  obstacle_poses: Any = None
-  distance_to_target: Any = None
+    """Holds onto info necessary for pushing state machine."""
+
+    xy_block: Any = None
+    xy_ee: Any = None
+    xy_pre_block: Any = None
+    xy_delta_to_nexttoblock: Any = None
+    xy_delta_to_touchingblock: Any = None
+    xy_dir_block_to_ee: Any = None
+    theta_threshold_to_orient: Any = None
+    theta_threshold_flat_enough: Any = None
+    theta_error: Any = None
+    obstacle_poses: Any = None
+    distance_to_target: Any = None

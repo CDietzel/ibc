@@ -16,25 +16,27 @@
 """Loads an environment for data collection."""
 from absl import logging
 import gin
-from ibc.environments.block_pushing import block_pushing  # pylint: disable=unused-import
+from ibc.environments.block_pushing import (
+    block_pushing,
+)  # pylint: disable=unused-import
 from tf_agents.environments import suite_gym
 
 
 @gin.configurable
-def get_env(task,
-            use_image_obs=True,
-            fixed_start_poses=False,
-            noisy_ee_pose=False,
-            shared_memory_pybullet=False,
-            max_episode_steps=None):
-  """Loads an environment given the task."""
-  del use_image_obs
-  del fixed_start_poses
-  del noisy_ee_pose
-  env_name = block_pushing.build_env_name(
-      task,
-      shared_memory_pybullet,
-      use_image_obs=False,
-      use_normalized_env=False)
-  logging.info('Loading environment %s (env_name=%s)', task, env_name)
-  return suite_gym.load(env_name, max_episode_steps=max_episode_steps)
+def get_env(
+    task,
+    use_image_obs=True,
+    fixed_start_poses=False,
+    noisy_ee_pose=False,
+    shared_memory_pybullet=False,
+    max_episode_steps=None,
+):
+    """Loads an environment given the task."""
+    del use_image_obs
+    del fixed_start_poses
+    del noisy_ee_pose
+    env_name = block_pushing.build_env_name(
+        task, shared_memory_pybullet, use_image_obs=False, use_normalized_env=False
+    )
+    logging.info("Loading environment %s (env_name=%s)", task, env_name)
+    return suite_gym.load(env_name, max_episode_steps=max_episode_steps)

@@ -24,82 +24,93 @@ from tf_agents.networks import nest_map
 
 
 def flatten_observation(sample, info):
-  obs, action = sample
-  flat_obs = tf.nest.flatten(obs)
-  flat_obs = tf.concat(flat_obs, axis=-1)
-  return (flat_obs, action), info
+    obs, action = sample
+    flat_obs = tf.nest.flatten(obs)
+    flat_obs = tf.concat(flat_obs, axis=-1)
+    return (flat_obs, action), info
 
 
 def drop_info_and_float_cast(sample, _):
-  obs, action = sample
+    obs, action = sample
 
-  for img_key in constants.IMG_KEYS:
-    if isinstance(obs, dict) and img_key in obs:
-      obs[img_key] = tf.image.convert_image_dtype(
-          obs[img_key], dtype=tf.float32)
+    for img_key in constants.IMG_KEYS:
+        if isinstance(obs, dict) and img_key in obs:
+            obs[img_key] = tf.image.convert_image_dtype(obs[img_key], dtype=tf.float32)
 
-  return tf.nest.map_structure(lambda t: tf.cast(t, tf.float32), (obs, action))
+    return tf.nest.map_structure(lambda t: tf.cast(t, tf.float32), (obs, action))
 
 
 NormalizationInfo = collections.namedtuple(
-    'NormalizationInfo',
-    ['obs_norm_layer', 'act_norm_layer', 'act_denorm_layer',
-     'min_actions', 'max_actions'])
+    "NormalizationInfo",
+    [
+        "obs_norm_layer",
+        "act_norm_layer",
+        "act_denorm_layer",
+        "min_actions",
+        "max_actions",
+    ],
+)
 
 
 @gin.configurable
-def get_normalizers(train_data,
-                    batch_size,
-                    env_name,
-                    nested_obs=False,
-                    nested_actions=False,
-                    num_batches=100,
-                    num_samples=None):
-  """Computes stats and creates normalizer layers from stats."""
-  statistics_dataset = train_data
+def get_normalizers(
+    train_data,
+    batch_size,
+    env_name,
+    nested_obs=False,
+    nested_actions=False,
+    num_batches=100,
+    num_samples=None,
+):
+    """Computes stats and creates normalizer layers from stats."""
+    statistics_dataset = train_data
 
-  if env_name not in tasks.D4RL_TASKS and not nested_obs:
+    if env_name not in tasks.D4RL_TASKS and not nested_obs:
+        statistics_dataset = statistics_dataset.map(
+            flatten_observation, num_parallel_calls=tf.data.experimental.AUTOTUNE
+        ).prefetch(100)
+
     statistics_dataset = statistics_dataset.map(
-        flatten_observation,
-        num_parallel_calls=tf.data.experimental.AUTOTUNE).prefetch(100)
+        drop_info_and_float_cast, num_parallel_calls=tf.data.experimental.AUTOTUNE
+    ).prefetch(100)
 
-  statistics_dataset = statistics_dataset.map(
-      drop_info_and_float_cast,
-      num_parallel_calls=tf.data.experimental.AUTOTUNE).prefetch(100)
+    # You can either ask for num_batches (by default, used originally),
+    # or num_samples (which doesn't penalize you for using bigger batches).
+    if num_samples is None:
+        num_samples = num_batches * batch_size
 
-  # You can either ask for num_batches (by default, used originally),
-  # or num_samples (which doesn't penalize you for using bigger batches).
-  if num_samples is None:
-    num_samples = num_batches * batch_size
+    # Create observation and action normalization layers.
+    (
+        obs_norm_layer,
+        act_norm_layer,
+        act_denorm_layer,
+        min_actions,
+        max_actions,
+    ) = stats.compute_dataset_statistics(
+        statistics_dataset,
+        num_samples=num_samples,
+        nested_obs=nested_obs,
+        nested_actions=nested_actions,
+    )
 
-  # Create observation and action normalization layers.
-  (obs_norm_layer, act_norm_layer, act_denorm_layer,
-   min_actions, max_actions) = (
-       stats.compute_dataset_statistics(
-           statistics_dataset,
-           num_samples=num_samples,
-           nested_obs=nested_obs,
-           nested_actions=nested_actions))
+    # Define a function used to normalize training data inside a tf.data .map().
+    def norm_train_data_fn(obs_and_act, nothing):
+        obs = obs_and_act[0]
+        for img_key in constants.IMG_KEYS:
+            if isinstance(obs, dict) and img_key in obs:
+                obs[img_key] = tf.image.convert_image_dtype(
+                    obs[img_key], dtype=tf.float32
+                )
+        act = obs_and_act[1]
+        normalized_obs = obs_norm_layer(obs)
+        if isinstance(obs_norm_layer, nest_map.NestMap):
+            normalized_obs, _ = normalized_obs
+        normalized_act = act_norm_layer(act)
+        if isinstance(act_norm_layer, nest_map.NestMap):
+            normalized_act, _ = normalized_act
+        return ((normalized_obs, normalized_act), nothing)
 
-  # Define a function used to normalize training data inside a tf.data .map().
-  def norm_train_data_fn(obs_and_act, nothing):
-    obs = obs_and_act[0]
-    for img_key in constants.IMG_KEYS:
-      if isinstance(obs, dict) and img_key in obs:
-        obs[img_key] = tf.image.convert_image_dtype(
-            obs[img_key], dtype=tf.float32)
-    act = obs_and_act[1]
-    normalized_obs = obs_norm_layer(obs)
-    if isinstance(obs_norm_layer, nest_map.NestMap):
-      normalized_obs, _ = normalized_obs
-    normalized_act = act_norm_layer(act)
-    if isinstance(act_norm_layer, nest_map.NestMap):
-      normalized_act, _ = normalized_act
-    return ((normalized_obs, normalized_act), nothing)
-
-  norm_info = NormalizationInfo(obs_norm_layer,
-                                act_norm_layer,
-                                act_denorm_layer,
-                                min_actions,
-                                max_actions)
-  return norm_info, norm_train_data_fn
+    norm_info = NormalizationInfo(
+        obs_norm_layer, act_norm_layer, act_denorm_layer, min_actions, max_actions
+    )
+    return norm_info, norm_train_data_fn

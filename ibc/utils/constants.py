@@ -14,4 +14,4 @@
 # limitations under the License.
 
 """Defines various constants shared across ibc."""
-IMG_KEYS = ['rgb', 'front', 'image']
+IMG_KEYS = ["rgb", "front", "image"]

@@ -19,5 +19,6 @@ from ibc.ibc.agents import mse_policy
 
 
 class MdnPolicyWrapper(mse_policy.MsePolicyWrapper):
-  """This can currently reuse exactly MSE's implementation for policy class."""
-  pass
+    """This can currently reuse exactly MSE's implementation for policy class."""
+
+    pass

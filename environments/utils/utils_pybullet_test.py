@@ -27,28 +27,28 @@ from tf_agents.environments import suite_gym
 
 
 class PybulletStateTest(tf.test.TestCase):
+    def test_serialize_deserialize(self):
+        for env_name in [block_pushing.build_env_name("PUSH", False, False)]:
+            env = suite_gym.load(env_name)
+            state = [env.get_pybullet_state()]
+            task = "test"
 
-  def test_serialize_deserialize(self):
-    for env_name in [block_pushing.build_env_name('PUSH', False, False)]:
-      env = suite_gym.load(env_name)
-      state = [env.get_pybullet_state()]
-      task = 'test'
+            # Serialize the state to file.
+            filename = os.path.join(
+                tempfile.mkdtemp(dir=self.get_temp_dir()), env_name + ".json.zip"
+            )
+            actions = np.random.rand(1, 2).tolist()
+            write_pybullet_state(filename, state, task, actions=actions)
+            self.assertTrue(tf.io.gfile.exists(filename))
+            data = read_pybullet_state(filename)
 
-      # Serialize the state to file.
-      filename = os.path.join(
-          tempfile.mkdtemp(dir=self.get_temp_dir()), env_name + '.json.zip')
-      actions = np.random.rand(1, 2).tolist()
-      write_pybullet_state(filename, state, task, actions=actions)
-      self.assertTrue(tf.io.gfile.exists(filename))
-      data = read_pybullet_state(filename)
+            self.assertEqual(data["task"], task)
+            self.assertEqual(data["pybullet_state"], state)
+            self.assertEqual(data["actions"], actions)
 
-      self.assertEqual(data['task'], task)
-      self.assertEqual(data['pybullet_state'], state)
-      self.assertEqual(data['actions'], actions)
-
-      # Set the state largely for code coverage.
-      env.set_pybullet_state(data['pybullet_state'][0])
+            # Set the state largely for code coverage.
+            env.set_pybullet_state(data["pybullet_state"][0])
 
 
-if __name__ == '__main__':
-  tf.test.main()
+if __name__ == "__main__":
+    tf.test.main()

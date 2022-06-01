@@ -23,13 +23,12 @@ from tf_agents.utils import test_utils
 
 
 class ParticleEnvTest(test_utils.TestCase):
+    def testEnv(self):
+        env = particle.ParticleEnv()
+        env = suite_gym.wrap_env(env)
+        self.assertIsInstance(env, py_environment.PyEnvironment)
+        utils.validate_py_environment(env)
 
-  def testEnv(self):
-    env = particle.ParticleEnv()
-    env = suite_gym.wrap_env(env)
-    self.assertIsInstance(env, py_environment.PyEnvironment)
-    utils.validate_py_environment(env)
 
-
-if __name__ == '__main__':
-  test_utils.main()
+if __name__ == "__main__":
+    test_utils.main()

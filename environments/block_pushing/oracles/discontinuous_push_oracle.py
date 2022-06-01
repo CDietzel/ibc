@@ -25,45 +25,46 @@ from tf_agents.typing import types
 import pybullet  # pylint: disable=unused-import
 
 
-class DiscontinuousOrientedPushOracle(
-    oriented_push_oracle_module.OrientedPushOracle):
-  """Pushes to first target, waits, then pushes to second target."""
+class DiscontinuousOrientedPushOracle(oriented_push_oracle_module.OrientedPushOracle):
+    """Pushes to first target, waits, then pushes to second target."""
 
-  def __init__(self, env, goal_tolerance=0.04, wait=0):
-    super(DiscontinuousOrientedPushOracle, self).__init__(env)
-    self._countdown = 0
-    self._wait = wait
-    self._goal_dist_tolerance = goal_tolerance
+    def __init__(self, env, goal_tolerance=0.04, wait=0):
+        super(DiscontinuousOrientedPushOracle, self).__init__(env)
+        self._countdown = 0
+        self._wait = wait
+        self._goal_dist_tolerance = goal_tolerance
 
-  def reset(self):
-    self.phase = "move_to_pre_block"
-    self._countdown = 0
+    def reset(self):
+        self.phase = "move_to_pre_block"
+        self._countdown = 0
 
-  def _action(self, time_step,
-              policy_state):
-    if time_step.is_first():
-      self.reset()
-      # Move to first target first.
-      self._current_target = "target"
-      self._has_switched = False
+    def _action(self, time_step, policy_state):
+        if time_step.is_first():
+            self.reset()
+            # Move to first target first.
+            self._current_target = "target"
+            self._has_switched = False
 
-    def _block_target_dist(block, target):
-      dist = np.linalg.norm(time_step.observation["%s_translation" % block]
-                            - time_step.observation["%s_translation" % target])
-      return dist
+        def _block_target_dist(block, target):
+            dist = np.linalg.norm(
+                time_step.observation["%s_translation" % block]
+                - time_step.observation["%s_translation" % target]
+            )
+            return dist
 
-    d1 = _block_target_dist("block", "target")
-    if (d1 < self._goal_dist_tolerance and not self._has_switched):
-      self._countdown = self._wait
-      # If first block has been pushed to first target, switch to second block.
-      self._has_switched = True
-      self._current_target = "target2"
+        d1 = _block_target_dist("block", "target")
+        if d1 < self._goal_dist_tolerance and not self._has_switched:
+            self._countdown = self._wait
+            # If first block has been pushed to first target, switch to second block.
+            self._has_switched = True
+            self._current_target = "target2"
 
-    xy_delta = self._get_action_for_block_target(
-        time_step, block="block", target=self._current_target)
+        xy_delta = self._get_action_for_block_target(
+            time_step, block="block", target=self._current_target
+        )
 
-    if self._countdown > 0:
-      xy_delta = np.zeros_like(xy_delta)
-      self._countdown -= 1
+        if self._countdown > 0:
+            xy_delta = np.zeros_like(xy_delta)
+            self._countdown -= 1
 
-    return policy_step.PolicyStep(action=np.asarray(xy_delta, dtype=np.float32))
+        return policy_step.PolicyStep(action=np.asarray(xy_delta, dtype=np.float32))

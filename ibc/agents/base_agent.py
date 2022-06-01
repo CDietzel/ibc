@@ -24,43 +24,41 @@ from tf_agents.utils import eager_utils
 
 
 class BehavioralCloningAgent(tf_agent.TFAgent):
-  """TFAgent, implementing base behavioral cloning agent."""
+    """TFAgent, implementing base behavioral cloning agent."""
 
-  def _loss(self,
-            experience=None,
-            variables_to_train=None,
-            weights=None,
-            training=False):
-    raise NotImplementedError("Implement in subclass.")
+    def _loss(
+        self, experience=None, variables_to_train=None, weights=None, training=False
+    ):
+        raise NotImplementedError("Implement in subclass.")
 
-  def _train(self,
-             experience,
-             weights = None):
-    variables_to_train = self.cloning_network.trainable_weights
-    assert list(variables_to_train), "No variables in the agent's network."
-    non_trainable_weights = self.cloning_network.non_trainable_weights
+    def _train(self, experience, weights=None):
+        variables_to_train = self.cloning_network.trainable_weights
+        assert list(variables_to_train), "No variables in the agent's network."
+        non_trainable_weights = self.cloning_network.non_trainable_weights
 
-    loss_info, tape = self._loss(
-        experience, variables_to_train, weights=weights, training=True)
+        loss_info, tape = self._loss(
+            experience, variables_to_train, weights=weights, training=True
+        )
 
-    tf.debugging.check_numerics(loss_info.loss, "Loss is inf or nan")
+        tf.debugging.check_numerics(loss_info.loss, "Loss is inf or nan")
 
-    grads = tape.gradient(loss_info.loss, variables_to_train)
-    grads_and_vars = list(zip(grads, variables_to_train))
+        grads = tape.gradient(loss_info.loss, variables_to_train)
+        grads_and_vars = list(zip(grads, variables_to_train))
 
-    if self._summarize_grads_and_vars:
-      grads_and_vars_with_non_trainable = (
-          grads_and_vars + [(None, v) for v in non_trainable_weights])
-      eager_utils.add_variables_summaries(grads_and_vars_with_non_trainable,
-                                          self.train_step_counter)
-      eager_utils.add_gradients_summaries(grads_and_vars,
-                                          self.train_step_counter)
+        if self._summarize_grads_and_vars:
+            grads_and_vars_with_non_trainable = grads_and_vars + [
+                (None, v) for v in non_trainable_weights
+            ]
+            eager_utils.add_variables_summaries(
+                grads_and_vars_with_non_trainable, self.train_step_counter
+            )
+            eager_utils.add_gradients_summaries(grads_and_vars, self.train_step_counter)
 
-    self._optimizer.apply_gradients(grads_and_vars)
-    self.train_step_counter.assign_add(1)
+        self._optimizer.apply_gradients(grads_and_vars)
+        self.train_step_counter.assign_add(1)
 
-    return loss_info
+        return loss_info
 
-  def get_eval_loss(self, experience):
-    loss_dict = self._loss(experience, training=False)
-    return loss_dict
+    def get_eval_loss(self, experience):
+        loss_dict = self._loss(experience, training=False)
+        return loss_dict

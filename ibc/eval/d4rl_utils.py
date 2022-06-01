@@ -24,14 +24,14 @@ from tf_agents.environments import gym_wrapper
 
 @gin.configurable
 def load_d4rl(env_name, default_time_limit=1000):
-  """Loads the python environment from D4RL."""
-  gym_env = gym.make(env_name)
-  gym_spec = gym.spec(env_name)
+    """Loads the python environment from D4RL."""
+    gym_env = gym.make(env_name)
+    gym_spec = gym.spec(env_name)
 
-  # Default to env time limit unless it is not specified.
-  if gym_spec.max_episode_steps in [0, None]:
-    gym_env = TimeLimit(gym_env, max_episode_steps=default_time_limit)
+    # Default to env time limit unless it is not specified.
+    if gym_spec.max_episode_steps in [0, None]:
+        gym_env = TimeLimit(gym_env, max_episode_steps=default_time_limit)
 
-  # Wrap TF-Agents environment.
-  env = gym_wrapper.GymWrapper(gym_env)
-  return env
+    # Wrap TF-Agents environment.
+    env = gym_wrapper.GymWrapper(gym_env)
+    return env

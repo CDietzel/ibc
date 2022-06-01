@@ -28,45 +28,43 @@ NUM_SUCCESS_STEPS = 25
 
 
 class D4RLSuccessMetric(py_metrics.StreamingMetric):
-  """Computes the task success for D4RL environments."""
+    """Computes the task success for D4RL environments."""
 
-  def __init__(self,
-               env,
-               name = 'D4RLSuccess',
-               buffer_size = 10,
-               batch_size = None):
-    """Creates an AverageReturnMetric."""
-    assert not env.batched
-    self._env = env
-    super(D4RLSuccessMetric, self).__init__(
-        name, buffer_size=buffer_size, batch_size=batch_size)
+    def __init__(self, env, name="D4RLSuccess", buffer_size=10, batch_size=None):
+        """Creates an AverageReturnMetric."""
+        assert not env.batched
+        self._env = env
+        super(D4RLSuccessMetric, self).__init__(
+            name, buffer_size=buffer_size, batch_size=batch_size
+        )
 
-  def _reset(self, batch_size):
-    """Resets stat gathering variables."""
-    self._cnt = 0
-    self._successes = []
-    pass
+    def _reset(self, batch_size):
+        """Resets stat gathering variables."""
+        self._cnt = 0
+        self._successes = []
+        pass
 
-  def _batched_call(self, trajectory):
-    """Processes the trajectory to update the metric.
+    def _batched_call(self, trajectory):
+        """Processes the trajectory to update the metric.
 
-    Args:
-      trajectory: a tf_agents.trajectory.Trajectory.
-    """
-    self._cnt += 1
-    if self._env.get_info() is None:
-      # Last step doesn't return info.
-      return
-    success = 1.0 if self._env.get_info()['goal_achieved'] else 0.
-    self._successes.append(success)
-    lasts = trajectory.is_last()
-    if np.any(lasts):
-      is_last = np.where(lasts)
-      rollout_success = (1.0 if np.sum(self._successes) > NUM_SUCCESS_STEPS
-                         else 0.)
-      rollout_success = np.asarray(rollout_success, np.float32)
+        Args:
+          trajectory: a tf_agents.trajectory.Trajectory.
+        """
+        self._cnt += 1
+        if self._env.get_info() is None:
+            # Last step doesn't return info.
+            return
+        success = 1.0 if self._env.get_info()["goal_achieved"] else 0.0
+        self._successes.append(success)
+        lasts = trajectory.is_last()
+        if np.any(lasts):
+            is_last = np.where(lasts)
+            rollout_success = (
+                1.0 if np.sum(self._successes) > NUM_SUCCESS_STEPS else 0.0
+            )
+            rollout_success = np.asarray(rollout_success, np.float32)
 
-      if rollout_success.shape is ():  # pylint: disable=literal-comparison
-        rollout_success = nest_utils.batch_nested_array(rollout_success)
+            if rollout_success.shape is ():  # pylint: disable=literal-comparison
+                rollout_success = nest_utils.batch_nested_array(rollout_success)
 
-      self.add_to_buffer(rollout_success[is_last])
+            self.add_to_buffer(rollout_success[is_last])
