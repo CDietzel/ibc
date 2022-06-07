@@ -17,6 +17,7 @@ keras==2.6.0
 tf-agents==0.11.0rc0
 tqdm==4.62.2
 protobuf==3.20.1 #Added Requirement because protobuf version 4 has breaking changes
+pandas # Added requirement so that VSCode debugging works
 
 # IF YOU HAVE ISSUES WITH THE UNIT TESTS, PIN THE DEPENDENCIES (UNCOMMENT SOME OF THE LINES BELOW)
 # THEN RUN pip install --ignore-installed --no-cache-dir -r requirements.txt

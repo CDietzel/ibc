@@ -123,23 +123,23 @@ def train_eval(
     """Trains a BC agent on the given datasets."""
     if task is None:
         raise ValueError("task argument must be set.")
-    logging.info(("Using task:", task))
+    logging.info(("Using task:", task))  # GET TASK NAME
 
-    tf.random.set_seed(seed)
+    tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
-        tf.io.gfile.makedirs(root_dir)
+        tf.io.gfile.makedirs(root_dir)  # MAKE GFILE (PORTRABLE FILESYSTEM ABSTRACTION)
 
     # Logging.
     if tag:
         root_dir = os.path.join(root_dir, tag)
     if add_time:
         current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        root_dir = os.path.join(root_dir, current_time)
+        root_dir = os.path.join(root_dir, current_time)  # DEFINES THE LOG DIRECTORY
 
     # Define eval env.
     eval_envs = []
     env_names = []
-    for task_id in task:
+    for task_id in task:  # GET THE ENVIRONMENT, WE DON'T NEED THIS (DOING PURE BC)
         env_name = eval_env_module.get_env_name(task_id, shared_memory_eval, image_obs)
         logging.info(("Got env name:", env_name))
         eval_env = eval_env_module.get_eval_env(
@@ -151,11 +151,14 @@ def train_eval(
 
     (
         obs_tensor_spec,
-        action_tensor_spec,
+        action_tensor_spec,  # DEFINES TENSOR SPECS FOR ALL STATES/ACTIONS (IMPORTANT)
         time_step_tensor_spec,
     ) = spec_utils.get_tensor_specs(eval_envs[0])
 
     # Compute normalization info from training data.
+    # CREATES A FUNCTION TO NORMALIZE TRAINING DATA, COMPLEX, USES LAMBDAS
+    # NEEDS FURTHER STUDY (MAYBE REPLACE WITH LESS GENERAL/SIMPLER APPROACH)
+    # ALTERNATIVELY MAYBE JUST REUSE THIS EXACT CODE
     create_train_and_eval_fns_unnormalized = data_module.get_data_fns(
         dataset_path,
         sequence_length,
@@ -186,14 +189,19 @@ def train_eval(
         max_data_shards=max_data_shards,
     )
     # Create properly distributed eval data iterator.
+    # THIS APPEARS TO DO NOTHING???? JUST RETURNS NONE (COULD BE REMOVED???)
+    # MIGHT ONLY BE THIS WAY WITH CERTAIN DATASETS THO
     dist_eval_data_iter = get_distributed_eval_data(create_train_and_eval_fns, strategy)
 
     # Create normalization layers for obs and action.
     with strategy.scope():
         # Create train step counter.
+        # SIMPLE FUNCTION, RETURNS TF VARIABLE
         train_step = train_utils.create_train_step()
 
         # Define action sampling spec.
+        # DEFINES THE MINIMUM AND MAXIMUM VALUES FOR THE ACTIONS IN THE DATASET
+        # WHAT IS THE DIFFERENCE BETWEEN THIS AND action_tensor_spec???
         action_sampling_spec = sampling_spec_module.get_sampling_spec(
             action_tensor_spec,
             min_actions=norm_info.min_actions,
@@ -207,6 +215,9 @@ def train_eval(
         logging.info(("Using action_sampling_spec:", action_sampling_spec))
 
         # Define keras cloning network.
+        # THIS IS WHERE THE MAGIC HAPPENS!!!!!!!!!!!!
+        # THE ACTUAL BEHAVIORAL CLONING NETWORK THAT DOES THE THING
+        # DEFINITELY STEAL THIS CODE
         cloning_network = cloning_network_module.get_cloning_network(
             network,
             obs_tensor_spec,
