@@ -62,7 +62,7 @@ flags.DEFINE_bool("video", False, "If true, write out one rollout video after ev
 flags.DEFINE_multi_enum(
     "task",
     None,
-    (tasks.IBC_TASKS + tasks.D4RL_TASKS),
+    (tasks.IBC_TASKS + tasks.D4RL_TASKS + ["INTERBOTIX"]),
     "If True the reach task is evaluated.",
 )
 flags.DEFINE_boolean(
@@ -137,23 +137,25 @@ def train_eval(
         root_dir = os.path.join(root_dir, current_time)  # DEFINES THE LOG DIRECTORY
 
     # Define eval env.
-    eval_envs = []
-    env_names = []
-    for task_id in task:  # GET THE ENVIRONMENT, WE DON'T NEED THIS (DOING PURE BC)
-        env_name = eval_env_module.get_env_name(task_id, shared_memory_eval, image_obs)
-        logging.info(("Got env name:", env_name))
-        eval_env = eval_env_module.get_eval_env(
-            env_name, sequence_length, goal_tolerance, num_envs
-        )
-        logging.info(("Got eval_env:", eval_env))
-        eval_envs.append(eval_env)
-        env_names.append(env_name)
+    # eval_envs = []
+    # env_names = []
+    # for task_id in task:  # GET THE ENVIRONMENT, WE DON'T NEED THIS (DOING PURE BC)
+    #     env_name = eval_env_module.get_env_name(task_id, shared_memory_eval, image_obs)
+    #     logging.info(("Got env name:", env_name))
+    #     eval_env = eval_env_module.get_eval_env(
+    #         env_name, sequence_length, goal_tolerance, num_envs
+    #     )
+    #     logging.info(("Got eval_env:", eval_env))
+    #     eval_envs.append(eval_env)
+    #     env_names.append(env_name)
 
     (
         obs_tensor_spec,
         action_tensor_spec,  # DEFINES TENSOR SPECS FOR ALL STATES/ACTIONS (IMPORTANT)
         time_step_tensor_spec,
-    ) = spec_utils.get_tensor_specs(eval_envs[0])
+    ) = spec_utils.get_tensor_specs(
+        eval_envs[0]
+    )  # TODO: REVERSE ENGINEER THIS
 
     # Compute normalization info from training data.
     # CREATES A FUNCTION TO NORMALIZE TRAINING DATA, COMPLEX, USES LAMBDAS
@@ -170,7 +172,10 @@ def train_eval(
     )
     train_data, _ = create_train_and_eval_fns_unnormalized()
     (norm_info, norm_train_data_fn) = normalizers_module.get_normalizers(
-        train_data, batch_size, env_name
+        train_data,
+        batch_size,
+        None  # TODO: Verify that the replacement of env_name
+        # with None still works
     )
 
     # Create normalized training data.
@@ -259,27 +264,27 @@ def train_eval(
         )
 
         # Define eval.
-        eval_actors, eval_success_metrics = [], []
-        for eval_env, env_name in zip(eval_envs, env_names):
-            env_name_clean = env_name.replace("/", "_")
-            # ACTOR MEDIATES BETWEEN POLICY AND ENVIRONMENT
-            # WE DON'T HAVE ENVIRONMENT, SO THIS WILL HAVE TO GO AWAY
-            # PROBABLY JUST DON'T EVAL ANYTHING AT ALL,
-            # JUST BLINDLY TRAIN AND CROSS OUR FINGERS
-            eval_actor, success_metric = eval_actor_module.get_eval_actor(
-                agent,
-                env_name,
-                eval_env,
-                train_step,
-                eval_episodes,
-                root_dir,
-                viz_img,
-                num_envs,
-                strategy,
-                summary_dir_suffix=env_name_clean,
-            )
-            eval_actors.append(eval_actor)
-            eval_success_metrics.append(success_metric)
+        # eval_actors, eval_success_metrics = [], []
+        # for eval_env, env_name in zip(eval_envs, env_names):
+        #     env_name_clean = env_name.replace("/", "_")
+        #     # ACTOR MEDIATES BETWEEN POLICY AND ENVIRONMENT
+        #     # WE DON'T HAVE ENVIRONMENT, SO THIS WILL HAVE TO GO AWAY
+        #     # PROBABLY JUST DON'T EVAL ANYTHING AT ALL,
+        #     # JUST BLINDLY TRAIN AND CROSS OUR FINGERS
+        #     eval_actor, success_metric = eval_actor_module.get_eval_actor(
+        #         agent,
+        #         env_name,
+        #         eval_env,
+        #         train_step,
+        #         eval_episodes,
+        #         root_dir,
+        #         viz_img,
+        #         num_envs,
+        #         strategy,
+        #         summary_dir_suffix=env_name_clean,
+        #     )
+        #     eval_actors.append(eval_actor)
+        #     eval_success_metrics.append(success_metric)
 
         get_eval_loss = tf.function(agent.get_eval_loss)
 
@@ -301,57 +306,59 @@ def train_eval(
         # DEFINITELY USE THIS
         training_step(agent, bc_learner, fused_train_steps, train_step)
 
-        if (
-            dist_eval_data_iter is not None
-            and train_step.numpy() % eval_loss_interval == 0
-        ):
-            # Run a validation step.
-            validation_step(dist_eval_data_iter, bc_learner, train_step, get_eval_loss)
+        # if (
+        #     dist_eval_data_iter is not None
+        #     and train_step.numpy() % eval_loss_interval == 0
+        # ):
+        #     # Run a validation step.
+        #     validation_step(dist_eval_data_iter, bc_learner, train_step, get_eval_loss)
 
-        # WILL NEED TO REMOVE THIS FOR LOOP, WE CAN'T EVAL BECAUSE NO ENVIRONMENT
-        if not skip_eval and train_step.numpy() % eval_interval == 0:
+        # # WILL NEED TO REMOVE THIS FOR LOOP, WE CAN'T EVAL BECAUSE NO ENVIRONMENT
+        # if not skip_eval and train_step.numpy() % eval_interval == 0:
 
-            all_metrics = []
-            for eval_env, eval_actor, env_name, success_metric in zip(
-                eval_envs, eval_actors, env_names, eval_success_metrics
-            ):
-                # Run evaluation.
-                metrics = evaluation_step(
-                    eval_episodes,
-                    eval_env,
-                    eval_actor,
-                    name_scope_suffix=f"_{env_name}",
-                )
-                all_metrics.append(metrics)
+        #     all_metrics = []
+        #     for eval_env, eval_actor, env_name, success_metric in zip(
+        #         eval_envs, eval_actors, env_names, eval_success_metrics
+        #     ):
+        #         # Run evaluation.
+        #         metrics = evaluation_step(
+        #             eval_episodes,
+        #             eval_env,
+        #             eval_actor,
+        #             name_scope_suffix=f"_{env_name}",
+        #         )
+        #         all_metrics.append(metrics)
 
-                # rendering on some of these envs is broken
-                if FLAGS.video and "kitchen" not in task:
-                    if "PARTICLE" in task:
-                        # A seed with spread-out goals is more clear to visualize.
-                        eval_env.seed(42)
-                    # Write one eval video.
-                    video_module.make_video(
-                        agent,
-                        eval_env,
-                        root_dir,
-                        step=train_step.numpy(),
-                        strategy=strategy,
-                    )
+        #         # rendering on some of these envs is broken
+        #         if FLAGS.video and "kitchen" not in task:
+        #             if "PARTICLE" in task:
+        #                 # A seed with spread-out goals is more clear to visualize.
+        #                 eval_env.seed(42)
+        #             # Write one eval video.
+        #             video_module.make_video(
+        #                 agent,
+        #                 eval_env,
+        #                 root_dir,
+        #                 step=train_step.numpy(),
+        #                 strategy=strategy,
+        #             )
 
-            metric_results = collections.defaultdict(list)
-            for env_metrics in all_metrics:
-                for metric in env_metrics:
-                    metric_results[metric.name].append(metric.result())
+        #     metric_results = collections.defaultdict(list)
+        #     for env_metrics in all_metrics:
+        #         for metric in env_metrics:
+        #             metric_results[metric.name].append(metric.result())
 
-            with summary_writer.as_default(), common.soft_device_placement(), tf.summary.record_if(
-                lambda: True
-            ):
-                for key, value in metric_results.items():
-                    tf.summary.scalar(
-                        name=os.path.join("AggregatedMetrics/", key),
-                        data=sum(value) / len(value),
-                        step=train_step,
-                    )
+        #     with summary_writer.as_default(), common.soft_device_placement(), tf.summary.record_if(
+        #         lambda: True
+        #     ):
+        #         for key, value in metric_results.items():
+        #             tf.summary.scalar(
+        #                 name=os.path.join("AggregatedMetrics/", key),
+        #                 data=sum(value) / len(value),
+        #                 step=train_step,
+        #             )
+
+    # TODO: Figure out how to actually output the trained model
 
     summary_writer.flush()
 
