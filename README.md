@@ -21,20 +21,7 @@ We find that across a wide range of robot policy learning scenarios, treating su
 
 The code for this project uses python 3.7+ and the following pip packages:
 
-```bash
-python3 -m pip install --upgrade pip
-pip install \
-  absl-py==0.12.0 \
-  gin-config==0.4.0 \
-  matplotlib==3.4.3 \
-  mediapy==1.0.3 \
-  opencv-python==4.5.3.56 \
-  pybullet==3.1.6 \
-  scipy==1.7.1 \
-  tensorflow==2.6.0 \
-  keras==2.6.0 \
-  tf-agents==0.11.0rc0 \
-  tqdm==4.62.2
+INSTALL PACKAGES FROM REQUIREMENTS.txt FILE, IT IS CORRECT
 ```
 
 (Optional): For Mujoco support, see [`docs/mujoco_setup.md`](docs/mujoco_setup.md).  Recommended to skip it

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Main binary to train a Behavioral Cloning agent."""
+"""Train a Behavioral Cloning network for pose mapping on an interbotix arm."""
 #  pylint: disable=g-long-lambda
 import collections
 import datetime
@@ -229,7 +229,7 @@ def train_eval(
         )
 
         # Define tfagent.
-        # MAKES THE BEHAVIORAL CLONING AGENT, PROVIDES LOSS FUNCTION AND 
+        # MAKES THE BEHAVIORAL CLONING AGENT, PROVIDES LOSS FUNCTION AND
         # COUNTEREXAMPLE GENERATOR. ALSO STEAL THIS CODE
         agent = agent_module.get_agent(
             loss_type,
