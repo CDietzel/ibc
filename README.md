@@ -20,9 +20,9 @@ We find that across a wide range of robot policy learning scenarios, treating su
 ## Prerequisites
 
 The code for this project uses python 3.7+
-```
-Install Instructions:
 
+**Install Instructions:**
+```bash
 python3 -m venv venv
 source ./venv/bin/activate
 python3 -m pip install --upgrade pip
@@ -30,14 +30,12 @@ pip install wheel
 pip install -r requirements.txt
 ```
 
-```
-
 (Optional): For Mujoco support, see [`docs/mujoco_setup.md`](docs/mujoco_setup.md).  Recommended to skip it
 unless you specifically want to run the Adroit and Kitchen environments.
 
 ## Quickstart: from 0 to a trained IBC policy in 10 minutes.
 
-**Step 1**: Install listed Python packages above in  [Prerequisites](#Prequisites).
+**Step 1**: Follow install instructions above in [Prerequisites](#Prequisites).
 
 **Step 2**: Run unit tests (should take less than a minute), and do this from the directory *just above the top-level `ibc` directory*:
 
