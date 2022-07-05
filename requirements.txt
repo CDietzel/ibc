@@ -1,6 +1,5 @@
 #INSTALL INSTRUCTIONS:
 #python3 -m venv venv
-#ACTIVATE THE VIRTUAL ENVIRONMENT
 #python3 -m pip install --upgrade pip
 #pip install wheel
 #pip install -r requirements.txt

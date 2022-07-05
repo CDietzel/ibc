@@ -19,9 +19,17 @@ We find that across a wide range of robot policy learning scenarios, treating su
 
 ## Prerequisites
 
-The code for this project uses python 3.7+ and the following pip packages:
+The code for this project uses python 3.7+
+```
+Install Instructions:
 
-INSTALL PACKAGES FROM REQUIREMENTS.txt FILE, IT IS CORRECT
+python3 -m venv venv
+source ./venv/bin/activate
+python3 -m pip install --upgrade pip
+pip install wheel
+pip install -r requirements.txt
+```
+
 ```
 
 (Optional): For Mujoco support, see [`docs/mujoco_setup.md`](docs/mujoco_setup.md).  Recommended to skip it
