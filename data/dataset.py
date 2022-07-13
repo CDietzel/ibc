@@ -145,6 +145,7 @@ def load_tfrecord_dataset_sequence(
         spec_path = (
             dataset_file + example_encoding_dataset._SPEC_FILE_EXTENSION
         )  # pylint: disable=protected-access
+        # Reads tfrecord spec
         dataset_spec = example_encoding_dataset.parse_encoded_spec_from_file(spec_path)
         specs.append(dataset_spec)
         if not all([dataset_spec == spec for spec in specs]):
@@ -167,6 +168,7 @@ def load_tfrecord_dataset_sequence(
             lambda window: window.batch(seq_len, drop_remainder=True)
         )
 
+    # At this point, the dataset is just the list of file paths
     dataset = tf.data.Dataset.from_tensor_slices(path_to_shards).repeat()
     num_parallel_calls = None if deterministic else len(path_to_shards)
     dataset = dataset.interleave(
@@ -180,6 +182,9 @@ def load_tfrecord_dataset_sequence(
     # flat_map doesn't work with Dict[str, tf.Tensor], so for now decode after
     # the window sample (this causes unnecessary decode of protos).
     # TODO(tompson): It would be more efficient to decode before window.
+
+    # THIS CALL IS WHAT DECODES THE BINARY TFRECORD DATA INTO USEFUL
+    #  tf_agents.Trajectory OBJECTS
     dataset = dataset.map(decoder, num_parallel_calls=num_parallel_calls)
 
     # We now have decoded sequences, each sample containing adjacent frames
@@ -215,7 +220,8 @@ def get_shards(dataset_path, separator=","):
             shards.extend(tf.io.gfile.glob(d))
     else:
         shards = tf.io.gfile.glob(dataset_path)
-    return shards
+    return shards  # contains a list of all the file paths to the tfrecord shards
+    # in random order
 
 
 def create_sequence_datasets(
