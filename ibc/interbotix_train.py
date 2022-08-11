@@ -19,6 +19,8 @@ import collections
 import datetime
 import functools
 import os
+import math
+from typing import OrderedDict
 
 from absl import app
 from absl import flags
@@ -43,11 +45,16 @@ from ibc.ibc.train import get_normalizers as normalizers_module
 from ibc.ibc.train import get_sampling_spec as sampling_spec_module
 from ibc.ibc.utils import make_video as video_module
 import tensorflow as tf
+from tf_agents.trajectories import time_step as ts
 from tf_agents.system import system_multiprocessing as multiprocessing
 from tf_agents.train.utils import spec_utils
 from tf_agents.train.utils import strategy_utils
 from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
+from tf_agents.specs import tensor_spec
+from tf_agents.specs import array_spec
+import numpy as np
+
 
 flags.DEFINE_string("tag", None, "Tag for the experiment. Appended to the root_dir.")
 flags.DEFINE_bool(
@@ -149,13 +156,39 @@ def train_eval(
     #     eval_envs.append(eval_env)
     #     env_names.append(env_name)
 
-    (
-        obs_tensor_spec,
-        action_tensor_spec,  # DEFINES TENSOR SPECS FOR ALL STATES/ACTIONS (IMPORTANT)
-        time_step_tensor_spec,
-    ) = spec_utils.get_tensor_specs(
-        eval_envs[0]
-    )  # TODO: REVERSE ENGINEER THIS
+    # (
+    #     obs_tensor_spec,
+    #     action_tensor_spec,  # DEFINES TENSOR SPECS FOR ALL STATES/ACTIONS (IMPORTANT)
+    #     time_step_tensor_spec,
+    # ) = spec_utils.get_tensor_specs(
+    #     eval_envs[0]
+    # )
+
+    obs_tensor_spec = OrderedDict(
+        [
+            (
+                "human_pose",
+                array_spec.BoundedArraySpec(
+                    shape=(2, 99),
+                    dtype=np.dtype("float32"),
+                    name="observation/human_pose",
+                    minimum=-1,
+                    maximum=1,
+                ),
+            )
+        ]
+    )
+    obs_tensor_spec = tensor_spec.from_spec(obs_tensor_spec)
+    # Action spec shape might be wrong, might need to be (2, 5) or something
+    action_tensor_spec = array_spec.BoundedArraySpec(
+        shape=(5,),
+        dtype=np.dtype("float32"),
+        name="action",
+        minimum=-2 * math.pi,
+        maximum=2 * math.pi,
+    )
+    action_tensor_spec = tensor_spec.from_spec(action_tensor_spec)
+    time_step_tensor_spec = ts.time_step_spec(obs_tensor_spec)
 
     # Compute normalization info from training data.
     # CREATES A FUNCTION TO NORMALIZE TRAINING DATA, COMPLEX, USES LAMBDAS
@@ -174,7 +207,8 @@ def train_eval(
     (norm_info, norm_train_data_fn) = normalizers_module.get_normalizers(
         train_data,
         batch_size,
-        None  # TODO: Verify that the replacement of env_name
+        None
+        # TODO: Verify that the replacement of env_name
         # with None still works
     )
 
