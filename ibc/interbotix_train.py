@@ -340,12 +340,12 @@ def train_eval(
         # DEFINITELY USE THIS
         training_step(agent, bc_learner, fused_train_steps, train_step)
 
-        # if (
-        #     dist_eval_data_iter is not None
-        #     and train_step.numpy() % eval_loss_interval == 0
-        # ):
-        #     # Run a validation step.
-        #     validation_step(dist_eval_data_iter, bc_learner, train_step, get_eval_loss)
+        if (
+            dist_eval_data_iter is not None
+            and train_step.numpy() % eval_loss_interval == 0
+        ):
+            # Run a validation step.
+            validation_step(dist_eval_data_iter, bc_learner, train_step, get_eval_loss)
 
         # # WILL NEED TO REMOVE THIS FOR LOOP, WE CAN'T EVAL BECAUSE NO ENVIRONMENT
         # if not skip_eval and train_step.numpy() % eval_interval == 0:
