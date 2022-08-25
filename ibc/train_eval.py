@@ -229,7 +229,7 @@ def train_eval(
         )
 
         # Define tfagent.
-        # MAKES THE BEHAVIORAL CLONING AGENT, PROVIDES LOSS FUNCTION AND 
+        # MAKES THE BEHAVIORAL CLONING AGENT, PROVIDES LOSS FUNCTION AND
         # COUNTEREXAMPLE GENERATOR. ALSO STEAL THIS CODE
         agent = agent_module.get_agent(
             loss_type,
@@ -407,6 +407,7 @@ def get_distributed_eval_data(data_fn, strategy):
     if eval_data:
         dist_eval_data_iter = iter(
             strategy.distribute_datasets_from_function(lambda: eval_data)
+            # TODO: Fix this function call!!!
         )
     return dist_eval_data_iter
 

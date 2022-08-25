@@ -26,7 +26,7 @@ def get_data_fns(
     batch_size,
     for_rnn,
     dataset_eval_fraction,
-    flatten_action,
+    flatten,
     norm_function=None,
     max_data_shards=-1,
 ):
@@ -49,7 +49,12 @@ def get_data_fns(
             flat_actions = [tf.cast(a, tf.float32) for a in flat_actions]
             return tf.concat(flat_actions, axis=-1)
 
-        if flatten_action:
+        def flatten_action(action):
+            flat_actions = tf.nest.flatten(action)
+            # flat_actions = [tf.cast(a, tf.float32) for a in flat_actions]
+            return tf.concat(flat_actions, axis=-1)
+
+        if flatten:
             train_data = train_data.map(
                 lambda trajectory: trajectory._replace(
                     action=flatten_and_cast_action(trajectory.action)
@@ -59,7 +64,8 @@ def get_data_fns(
             if eval_data:
                 eval_data = eval_data.map(
                     lambda trajectory: trajectory._replace(
-                        action=flatten_action(trajectory.action)
+                        action=flatten_action(trajectory.action)  # Unsure if this
+                        # should be a call to flatten_action or flatten_and_cast_action
                     )
                 )
 
