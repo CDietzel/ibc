@@ -151,3 +151,5 @@ outputs/*
 
 # TFRecord files
 *.tfrecord
+
+models/*

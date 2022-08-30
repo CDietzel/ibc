@@ -54,6 +54,7 @@ from tf_agents.utils import common
 from tf_agents.specs import tensor_spec
 from tf_agents.specs import array_spec
 import numpy as np
+from tf_agents.policies import policy_saver
 
 
 flags.DEFINE_string("tag", None, "Tag for the experiment. Appended to the root_dir.")
@@ -135,13 +136,26 @@ def train_eval(
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
         tf.io.gfile.makedirs(root_dir)  # MAKE GFILE (PORTRABLE FILESYSTEM ABSTRACTION)
+    policy_dir = os.path.join("/home/locobot/Documents/Repos/ibc/ibc/", "models")
+    if not tf.io.gfile.exists(policy_dir):
+        tf.io.gfile.makedirs(policy_dir)
 
     # Logging.
+    if add_time:
+        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
     if tag:
         root_dir = os.path.join(root_dir, tag)
     if add_time:
-        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         root_dir = os.path.join(root_dir, current_time)  # DEFINES THE LOG DIRECTORY
+
+    # Saving the trained model.
+    if tag:
+        policy_dir = os.path.join(policy_dir, tag)
+    if add_time:
+        policy_dir = os.path.join(
+            policy_dir, current_time
+        )  # DEFINES THE MODEL DIRECTORY
 
     # Define eval env.
     # eval_envs = []
@@ -392,8 +406,17 @@ def train_eval(
         #                 step=train_step,
         #             )
 
-    # TODO: Figure out how to actually output the trained model
+    # Saving the policy:
+    tf_policy_saver = policy_saver.PolicySaver(agent.policy)
+    tf_policy_saver.save(policy_dir)
 
+    # Loading the policy:
+    # policy = tf.saved_model.load(policy_dir)
+
+    # Doing inference with the policy:
+    # action_pred = policy.action(time_step)
+
+    # Finish writing train/eval summary:
     summary_writer.flush()
 
 
