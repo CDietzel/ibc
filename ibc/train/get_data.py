@@ -20,15 +20,15 @@ import tensorflow as tf
 
 
 def get_data_fns(
-    dataset_path,
-    sequence_length,
-    replay_capacity,
-    batch_size,
-    for_rnn,
-    dataset_eval_fraction,
-    flatten,
-    norm_function=None,
-    max_data_shards=-1,
+    dataset_path, # 'ibc/data/interbotix_data/oracle_interbotix*.tfrecord'
+    sequence_length, # 2
+    replay_capacity, # 10000
+    batch_size, # 512
+    for_rnn, # False
+    dataset_eval_fraction, # 0.0
+    flatten, # True
+    norm_function=None, # None
+    max_data_shards=-1, # -1
 ):
     """Gets train and eval datasets."""
 

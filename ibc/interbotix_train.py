@@ -153,9 +153,7 @@ def train_eval(
     if tag:
         policy_dir = os.path.join(policy_dir, tag)
     if add_time:
-        policy_dir = os.path.join(
-            policy_dir, current_time
-        )  # DEFINES THE MODEL DIRECTORY
+        policy_dir = os.path.join(policy_dir, "0")  # DEFINES THE MODEL DIRECTORY
 
     # Define eval env.
     # eval_envs = []
@@ -219,11 +217,7 @@ def train_eval(
     )
     train_data, _ = create_train_and_eval_fns_unnormalized()
     (norm_info, norm_train_data_fn) = normalizers_module.get_normalizers(
-        train_data,
-        batch_size,
-        None
-        # TODO: Verify that the replacement of env_name
-        # with None still works
+        train_data, batch_size, None
     )
 
     # Create normalized training data.
@@ -409,12 +403,6 @@ def train_eval(
     # Saving the policy:
     tf_policy_saver = policy_saver.PolicySaver(agent.policy)
     tf_policy_saver.save(policy_dir)
-
-    # Loading the policy:
-    # policy = tf.saved_model.load(policy_dir)
-
-    # Doing inference with the policy:
-    # action_pred = policy.action(time_step)
 
     # Finish writing train/eval summary:
     summary_writer.flush()

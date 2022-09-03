@@ -16,6 +16,7 @@
 """MCMC algorithms to optimize samples from EBMs."""
 
 import collections
+import math
 from typing import Tuple
 
 import gin
@@ -256,10 +257,18 @@ def langevin_step(
     if grad_clip is not None:
         de_dact = tf.clip_by_value(de_dact, -grad_clip, grad_clip)
     gradient_scale = 0.5  # this is in the Langevin dynamics equation.
+    # step_size = l_lambda
+    # noise = tf.random.normal(tf.shape(actions)) * noise_scale
+    # default Langevin dynamics equation
     de_dact = (
         gradient_scale * l_lambda * de_dact
         + tf.random.normal(tf.shape(actions)) * l_lambda * noise_scale
     )
+    # (theoretically) corrected Langevin dynamics equation
+    # de_dact = (
+    #     l_lambda * de_dact
+    #     + math.sqrt(2 * l_lambda) * tf.random.normal(tf.shape(actions)) * noise_scale
+    # )
     delta_actions = stepsize * de_dact
 
     # Clip to box.
