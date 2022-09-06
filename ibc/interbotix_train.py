@@ -153,7 +153,7 @@ def train_eval(
     if tag:
         policy_dir = os.path.join(policy_dir, tag)
     if add_time:
-        policy_dir = os.path.join(policy_dir, "0")  # DEFINES THE MODEL DIRECTORY
+        policy_dir = os.path.join(policy_dir, "1")  # DEFINES THE MODEL DIRECTORY
 
     # Define eval env.
     # eval_envs = []

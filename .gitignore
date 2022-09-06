@@ -153,3 +153,4 @@ outputs/*
 *.tfrecord
 
 models/*
+output/*

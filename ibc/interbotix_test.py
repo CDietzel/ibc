@@ -45,6 +45,7 @@ from ibc.ibc.train import get_normalizers as normalizers_module
 from ibc.ibc.train import get_sampling_spec as sampling_spec_module
 from ibc.ibc.utils import make_video as video_module
 import tensorflow as tf
+import pandas as pd
 from tf_agents.trajectories import time_step as ts
 from tf_agents.system import system_multiprocessing as multiprocessing
 from tf_agents.train.utils import spec_utils
@@ -54,6 +55,7 @@ from tf_agents.utils import common
 from tf_agents.specs import tensor_spec
 from tf_agents.specs import array_spec
 import numpy as np
+import matplotlib.pyplot as plt
 from tf_agents.policies import policy_saver
 from tf_agents.trajectories import StepType
 from tf_agents.trajectories.time_step import TimeStep
@@ -140,12 +142,17 @@ def train_eval(
     #     raise ValueError("task argument must be set.")
     # logging.info(("Using task:", task))  # GET TASK NAME
 
+    folder_num = 1
+
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
         tf.io.gfile.makedirs(root_dir)  # MAKE GFILE (PORTRABLE FILESYSTEM ABSTRACTION)
     policy_dir = os.path.join("/home/locobot/Documents/Repos/ibc/ibc/", "models")
     if not tf.io.gfile.exists(policy_dir):
         tf.io.gfile.makedirs(policy_dir)
+    output_dir = os.path.join("/home/locobot/Documents/Repos/ibc/ibc/", "output")
+    if not tf.io.gfile.exists(output_dir):
+        tf.io.gfile.makedirs(output_dir)
 
     # Logging.
     if add_time:
@@ -160,99 +167,19 @@ def train_eval(
     if tag:
         policy_dir = os.path.join(policy_dir, tag)
     if add_time:
-        policy_dir = os.path.join(policy_dir, "0")  # DEFINES THE MODEL DIRECTORY
+        policy_dir = os.path.join(
+            policy_dir, str(folder_num)
+        )  # DEFINES THE MODEL DIRECTORY
 
-    # # Define eval env.
-    # # eval_envs = []
-    # # env_names = []
-    # # for task_id in task:  # GET THE ENVIRONMENT, WE DON'T NEED THIS (DOING PURE BC)
-    # #     env_name = eval_env_module.get_env_name(task_id, shared_memory_eval, image_obs)
-    # #     logging.info(("Got env name:", env_name))
-    # #     eval_env = eval_env_module.get_eval_env(
-    # #         env_name, sequence_length, goal_tolerance, num_envs
-    # #     )
-    # #     logging.info(("Got eval_env:", eval_env))
-    # #     eval_envs.append(eval_env)
-    # #     env_names.append(env_name)
-
-    # # (
-    # #     obs_tensor_spec,
-    # #     action_tensor_spec,  # DEFINES TENSOR SPECS FOR ALL STATES/ACTIONS (IMPORTANT)
-    # #     time_step_tensor_spec,
-    # # ) = spec_utils.get_tensor_specs(
-    # #     eval_envs[0]
-    # # )
-
-    # obs_tensor_spec = OrderedDict(
-    #     [
-    #         (
-    #             "human_pose",
-    #             array_spec.BoundedArraySpec(
-    #                 shape=(2, 99),
-    #                 dtype=np.dtype("float32"),
-    #                 name="observation/human_pose",
-    #                 minimum=-1,
-    #                 maximum=1,
-    #             ),
-    #         )
-    #     ]
-    # )
-    # obs_tensor_spec = tensor_spec.from_spec(obs_tensor_spec)
-    # # Action spec shape might be wrong, might need to be (2, 5) or something
-    # action_tensor_spec = array_spec.BoundedArraySpec(
-    #     shape=(5,),
-    #     dtype=np.dtype("float32"),
-    #     name="action",
-    #     minimum=-2 * math.pi,
-    #     maximum=2 * math.pi,
-    # )
-    # action_tensor_spec = tensor_spec.from_spec(action_tensor_spec)
-    # time_step_tensor_spec = ts.time_step_spec(obs_tensor_spec)
-
-    # # Compute normalization info from training data.
-    # # CREATES A FUNCTION TO NORMALIZE TRAINING DATA, COMPLEX, USES LAMBDAS
-    # # NEEDS FURTHER STUDY (MAYBE REPLACE WITH LESS GENERAL/SIMPLER APPROACH)
-    # # ALTERNATIVELY MAYBE JUST REUSE THIS EXACT CODE
-    # create_train_and_eval_fns_unnormalized = data_module.get_data_fns(
-    #     dataset_path,
-    #     sequence_length,
-    #     replay_capacity,
-    #     batch_size,
-    #     for_rnn,
-    #     dataset_eval_fraction,
-    #     flatten_action,
-    # )
-    # train_data, _ = create_train_and_eval_fns_unnormalized()
-    # (norm_info, norm_train_data_fn) = normalizers_module.get_normalizers(
-    #     train_data,
-    #     batch_size,
-    #     None
-    # )
-
-    # # Create normalized training data.
-    # if not strategy:
-    #     strategy = tf.distribute.get_strategy()
-    # per_replica_batch_size = batch_size // strategy.num_replicas_in_sync
-    # create_train_and_eval_fns = data_module.get_data_fns(
-    #     dataset_path,
-    #     sequence_length,
-    #     replay_capacity,
-    #     per_replica_batch_size,
-    #     for_rnn,
-    #     dataset_eval_fraction,
-    #     flatten_action,
-    #     norm_function=norm_train_data_fn,
-    #     max_data_shards=max_data_shards,
-    # )
-    # # Create properly distributed eval data iterator.
-    # # THIS APPEARS TO DO NOTHING???? JUST RETURNS NONE (COULD BE REMOVED???)
-    # # MIGHT ONLY BE THIS WAY WITH CERTAIN DATASETS THO
-    # dist_eval_data_iter = get_distributed_eval_data(create_train_and_eval_fns, strategy)
-
-    # Loading the policy:
-    # policy = tf.saved_model.load(policy_dir)
-
-    # Loading the Dataset:
+    # Saving the model outputs.
+    if tag:
+        output_dir = os.path.join(output_dir, tag)
+    if add_time:
+        output_dir = os.path.join(
+            output_dir, str(folder_num)
+        )  # DEFINES THE MODEL DIRECTORY
+    if not tf.io.gfile.exists(output_dir):
+        tf.io.gfile.makedirs(output_dir)
 
     eval_fraction = dataset_eval_fraction
     flatten = flatten_action
@@ -334,9 +261,8 @@ def train_eval(
 
     def interleave_func(shard):
         dataset = (
-            tf.data.TFRecordDataset(shard, buffer_size=buffer_size_per_shard)
-            .cache()
-            .repeat()
+            tf.data.TFRecordDataset(shard, buffer_size=buffer_size_per_shard).cache()
+            # .repeat()
         )
         dataset = dataset.window(seq_len, shift=1, stride=1, drop_remainder=True)
         return dataset.flat_map(
@@ -426,294 +352,70 @@ def train_eval(
                 )
             )
 
-    # We predict 'many-to-one' observations -> action.
-    # train_data = train_data.map(
-    #     lambda trajectory: (
-    #         (trajectory.observation, trajectory.action[:, -1, Ellipsis]),
-    #         (),
-    #     )
-    # )
-    # if eval_data:
-    #     eval_data = eval_data.map(
-    #         lambda trajectory: (
-    #             (trajectory.observation, trajectory.action[:, -1, Ellipsis]),
-    #             (),
-    #         )
-    #     )
-
-    # if norm_function:
-    #     train_data = train_data.map(norm_function)
-    #     if eval_data:
-    #         eval_data = eval_data.map(norm_function)
-
     def convert_to_time_step(trajectory):
         step_type = trajectory.step_type
         reward = trajectory.reward
         discount = trajectory.discount
         observation = trajectory.observation
 
-        step_type = np.array(step_type[0].numpy(), dtype=np.int32)
-        reward = np.array(reward[0].numpy(), dtype=np.float32)
-        discount = np.array(discount[0].numpy(), dtype=np.float32)
-        observation = OrderedDict({k: v.numpy() for k, v in observation.items()})
-
-        time_step = TimeStep(step_type, reward, discount, observation)
         return TimeStep(
-            step_type=tf.expand_dims(time_step.step_type, 0),
-            reward=tf.expand_dims(time_step.reward, 0),
-            discount=tf.expand_dims(time_step.discount, 0),
-            observation={
-                "human_pose": tf.expand_dims(time_step.observation["human_pose"], 0)
-            },
+            step_type=tf.expand_dims(tf.cast(step_type[0], tf.int32), 0),
+            reward=tf.expand_dims(reward[0], 0),
+            discount=tf.expand_dims(discount[0], 0),
+            observation={"human_pose": tf.expand_dims(observation["human_pose"], 0)},
         )
 
-    # convert_to_time_step(next(iter(train_data)))
-    # convert_to_time_step(next(iter(train_data)))
+    def get_actual_action(trajectory):
+        action = trajectory.action
+        return action
 
-    # train_data = train_data.map(
-    #     convert_to_time_step, num_parallel_calls=tf.data.AUTOTUNE
-    # )
+    time_steps = train_data.map(
+        convert_to_time_step, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False
+    )
 
     # Loading the policy:
     policy = tf.saved_model.load(policy_dir)
 
     # Doing inference with the policy:
-    for trajectory in train_data:
-        time_step = convert_to_time_step(trajectory)
-        # print(time_step)
-        action = policy.action(time_step).action
-        # policy_step = policy.distribution(time_step, ())
-        # action = policy_step.action.sample()[0]
-        print(action)
+    def get_predicted_action(time_step):
+        return policy.action(time_step).action
 
+    predicted_action_dataset = time_steps.map(
+        get_predicted_action, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False
+    )
 
-#     # Create normalization layers for obs and action.
-#     with strategy.scope():
-#         # Create train step counter.
-#         # SIMPLE FUNCTION, RETURNS TF VARIABLE
-#         train_step = train_utils.create_train_step()
+    predicted_action_list = []
+    actual_action_list = []
+    for action in predicted_action_dataset:
+        predicted_action_list.append(action.numpy().tolist()[0])
+    # for time_step in train_data:
+    #     # time_step = convert_to_time_step(trajectory)
+    #     # print(time_step)
+    #     action = policy.action(time_step).action
+    #     # policy_step = policy.distribution(time_step, ())
+    #     # action = policy_step.action.sample()[0]
+    #     action = action.numpy().tolist()[0]
+    #     action_list.append(action)
 
-#         # Define action sampling spec.
-#         # DEFINES THE MINIMUM AND MAXIMUM VALUES FOR THE ACTIONS IN THE DATASET
-#         # WHAT IS THE DIFFERENCE BETWEEN THIS AND action_tensor_spec???
-#         action_sampling_spec = sampling_spec_module.get_sampling_spec(
-#             action_tensor_spec,
-#             min_actions=norm_info.min_actions,
-#             max_actions=norm_info.max_actions,
-#             uniform_boundary_buffer=uniform_boundary_buffer,
-#             act_norm_layer=norm_info.act_norm_layer,
-#         )
+    actual_action_dataset = train_data.map(
+        get_actual_action, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False
+    )
 
-#         # This is a common opportunity for a bug, having the wrong sampling min/max
-#         # so log this.
-#         logging.info(("Using action_sampling_spec:", action_sampling_spec))
+    pass
+    for action in actual_action_dataset:
+        actual_action_list.append(action.numpy().tolist()[0])
 
-#         # Define keras cloning network.
-#         # THIS IS WHERE THE MAGIC HAPPENS!!!!!!!!!!!!
-#         # THE ACTUAL BEHAVIORAL CLONING NETWORK THAT DOES THE THING
-#         # DEFINITELY STEAL THIS CODE
-#         cloning_network = cloning_network_module.get_cloning_network(
-#             network,
-#             obs_tensor_spec,
-#             action_tensor_spec,
-#             norm_info.obs_norm_layer,
-#             norm_info.act_norm_layer,
-#             sequence_length,
-#             norm_info.act_denorm_layer,
-#         )
+    joint_names = ["Waist", "shoulder", "elbow", "wrist_angle", "wrist_rotate"]
 
-#         # Define tfagent.
-#         # MAKES THE BEHAVIORAL CLONING AGENT, PROVIDES LOSS FUNCTION AND
-#         # COUNTEREXAMPLE GENERATOR. ALSO STEAL THIS CODE
-#         agent = agent_module.get_agent(
-#             loss_type,
-#             time_step_tensor_spec,
-#             action_tensor_spec,
-#             action_sampling_spec,
-#             norm_info.obs_norm_layer,
-#             norm_info.act_norm_layer,
-#             norm_info.act_denorm_layer,
-#             learning_rate,
-#             use_warmup,
-#             cloning_network,
-#             train_step,
-#             decay_steps,
-#         )
+    predicted_action_table = pd.DataFrame(predicted_action_list, columns=joint_names)
+    actual_action_table = pd.DataFrame(actual_action_list, columns=joint_names)
 
-#         # Define bc learner.
-#         # HANDLES CHECKPOINTING THE NETWORK OVER THE TRAINING PROCESS
-#         bc_learner = learner_module.get_learner(
-#             loss_type,
-#             root_dir,
-#             agent,
-#             train_step,
-#             create_train_and_eval_fns,
-#             fused_train_steps,
-#             strategy,
-#         )
-
-#         # Define eval.
-#         # eval_actors, eval_success_metrics = [], []
-#         # for eval_env, env_name in zip(eval_envs, env_names):
-#         #     env_name_clean = env_name.replace("/", "_")
-#         #     # ACTOR MEDIATES BETWEEN POLICY AND ENVIRONMENT
-#         #     # WE DON'T HAVE ENVIRONMENT, SO THIS WILL HAVE TO GO AWAY
-#         #     # PROBABLY JUST DON'T EVAL ANYTHING AT ALL,
-#         #     # JUST BLINDLY TRAIN AND CROSS OUR FINGERS
-#         #     eval_actor, success_metric = eval_actor_module.get_eval_actor(
-#         #         agent,
-#         #         env_name,
-#         #         eval_env,
-#         #         train_step,
-#         #         eval_episodes,
-#         #         root_dir,
-#         #         viz_img,
-#         #         num_envs,
-#         #         strategy,
-#         #         summary_dir_suffix=env_name_clean,
-#         #     )
-#         #     eval_actors.append(eval_actor)
-#         #     eval_success_metrics.append(success_metric)
-
-#         get_eval_loss = tf.function(agent.get_eval_loss)
-
-#         # Get summary writer for aggregated metrics.
-#         aggregated_summary_dir = os.path.join(root_dir, "eval")
-#         summary_writer = tf.summary.create_file_writer(
-#             aggregated_summary_dir, flush_millis=10000
-#         )
-#     logging.info("Saving operative-gin-config.")
-#     with tf.io.gfile.GFile(
-#         os.path.join(root_dir, "operative-gin-config.txt"), "wb"
-#     ) as f:
-#         f.write(gin.operative_config_str())
-
-#     # Main train and eval loop.
-#     while train_step.numpy() < num_iterations:
-#         # Run bc_learner for fused_train_steps.
-#         # THIS IS THE CORE FUNCTION THAT RUNS THE TRAINING STEPS
-#         # DEFINITELY USE THIS
-#         training_step(agent, bc_learner, fused_train_steps, train_step)
-
-#         if (
-#             dist_eval_data_iter is not None
-#             and train_step.numpy() % eval_loss_interval == 0
-#         ):
-#             # Run a validation step.
-#             validation_step(dist_eval_data_iter, bc_learner, train_step, get_eval_loss)
-
-#         # # WILL NEED TO REMOVE THIS FOR LOOP, WE CAN'T EVAL BECAUSE NO ENVIRONMENT
-#         # if not skip_eval and train_step.numpy() % eval_interval == 0:
-
-#         #     all_metrics = []
-#         #     for eval_env, eval_actor, env_name, success_metric in zip(
-#         #         eval_envs, eval_actors, env_names, eval_success_metrics
-#         #     ):
-#         #         # Run evaluation.
-#         #         metrics = evaluation_step(
-#         #             eval_episodes,
-#         #             eval_env,
-#         #             eval_actor,
-#         #             name_scope_suffix=f"_{env_name}",
-#         #         )
-#         #         all_metrics.append(metrics)
-
-#         #         # rendering on some of these envs is broken
-#         #         if FLAGS.video and "kitchen" not in task:
-#         #             if "PARTICLE" in task:
-#         #                 # A seed with spread-out goals is more clear to visualize.
-#         #                 eval_env.seed(42)
-#         #             # Write one eval video.
-#         #             video_module.make_video(
-#         #                 agent,
-#         #                 eval_env,
-#         #                 root_dir,
-#         #                 step=train_step.numpy(),
-#         #                 strategy=strategy,
-#         #             )
-
-#         #     metric_results = collections.defaultdict(list)
-#         #     for env_metrics in all_metrics:
-#         #         for metric in env_metrics:
-#         #             metric_results[metric.name].append(metric.result())
-
-#         #     with summary_writer.as_default(), common.soft_device_placement(), tf.summary.record_if(
-#         #         lambda: True
-#         #     ):
-#         #         for key, value in metric_results.items():
-#         #             tf.summary.scalar(
-#         #                 name=os.path.join("AggregatedMetrics/", key),
-#         #                 data=sum(value) / len(value),
-#         #                 step=train_step,
-#         #             )
-
-#     # Saving the policy:
-#     tf_policy_saver = policy_saver.PolicySaver(agent.policy)
-#     tf_policy_saver.save(policy_dir)
-
-#     # Loading the policy:
-#     # policy = tf.saved_model.load(policy_dir)
-
-#     # Doing inference with the policy:
-#     # action_pred = policy.action(time_step)
-
-#     # Finish writing train/eval summary:
-#     summary_writer.flush()
-
-
-# def training_step(agent, bc_learner, fused_train_steps, train_step):
-#     """Runs bc_learner for fused training steps."""
-#     reduced_loss_info = None
-#     if not hasattr(agent, "ebm_loss_type") or agent.ebm_loss_type != "cd_kl":
-#         reduced_loss_info = bc_learner.run(iterations=fused_train_steps)
-#     else:
-#         for _ in range(fused_train_steps):
-#             # I think impossible to do this inside tf.function.
-#             agent.cloning_network_copy.set_weights(agent.cloning_network.get_weights())
-#             reduced_loss_info = bc_learner.run(iterations=1)
-
-#     if reduced_loss_info:
-#         # Graph the loss to compare losses at the same scale regardless of
-#         # number of devices used.
-#         with bc_learner.train_summary_writer.as_default(), tf.summary.record_if(True):
-#             tf.summary.scalar("reduced_loss", reduced_loss_info.loss, step=train_step)
-
-
-# def validation_step(dist_eval_data_iter, bc_learner, train_step, get_eval_loss_fn):
-#     """Runs a validation step."""
-#     losses_dict = get_eval_loss_fn(next(dist_eval_data_iter))
-
-#     with bc_learner.train_summary_writer.as_default(), tf.summary.record_if(True):
-#         common.summarize_scalar_dict(
-#             losses_dict, step=train_step, name_scope="Eval_Losses/"
-#         )
-
-
-# def evaluation_step(eval_episodes, eval_env, eval_actor, name_scope_suffix=""):
-#     """Evaluates the agent in the environment."""
-#     logging.info("Evaluating policy.")
-#     with tf.name_scope("eval" + name_scope_suffix):
-#         # This will eval on seeds:
-#         # [0, 1, ..., eval_episodes-1]
-#         for eval_seed in range(eval_episodes):
-#             eval_env.seed(eval_seed)
-#             eval_actor.reset()  # With the new seed, the env actually needs reset.
-#             eval_actor.run()
-
-#         eval_actor.log_metrics()
-#         eval_actor.write_metric_summaries()
-#     return eval_actor.metrics
-
-
-# def get_distributed_eval_data(data_fn, strategy):
-#     """Gets a properly distributed evaluation data iterator."""
-#     _, eval_data = data_fn()
-#     dist_eval_data_iter = None
-#     if eval_data:
-#         dist_eval_data_iter = iter(
-#             strategy.distribute_datasets_from_function(lambda: eval_data)
-#         )
-#     return dist_eval_data_iter
+    _, axes = plt.subplots(nrows=1, ncols=2)
+    predicted_action_table.plot(ax=axes[0])
+    actual_action_table.plot(ax=axes[1])
+    plt.savefig(output_dir + "/plot.png")
+    # plt.show(block=True)
+    # pass
 
 
 def main(_):
