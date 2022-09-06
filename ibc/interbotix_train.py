@@ -133,6 +133,8 @@ def train_eval(
         raise ValueError("task argument must be set.")
     logging.info(("Using task:", task))  # GET TASK NAME
 
+    folder_num = 0
+
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
         tf.io.gfile.makedirs(root_dir)  # MAKE GFILE (PORTRABLE FILESYSTEM ABSTRACTION)
@@ -153,7 +155,9 @@ def train_eval(
     if tag:
         policy_dir = os.path.join(policy_dir, tag)
     if add_time:
-        policy_dir = os.path.join(policy_dir, "1")  # DEFINES THE MODEL DIRECTORY
+        policy_dir = os.path.join(
+            policy_dir, str(folder_num)
+        )  # DEFINES THE MODEL DIRECTORY
 
     # Define eval env.
     # eval_envs = []
