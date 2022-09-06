@@ -56,7 +56,7 @@ from tf_agents.specs import array_spec
 import numpy as np
 from tf_agents.policies import policy_saver
 from tf_agents.trajectories import StepType
-from tf_agents.trajectories import TimeStep
+from tf_agents.trajectories.time_step import TimeStep
 from ibc.data import dataset as x100_dataset_tools
 from tf_agents.trajectories.time_step import StepType
 from tf_agents.trajectories.trajectory import Trajectory
@@ -370,24 +370,22 @@ def train_eval(
         )
         dataset = dataset.map(decoder, num_parallel_calls=num_parallel_calls)
 
-        if for_rnn:
-            return dataset.map(
-                filter_episodes_rnn, num_parallel_calls=num_parallel_calls
-            )
-        else:
-            dataset = dataset.map(
-                filter_episodes, num_parallel_calls=num_parallel_calls
-            )
-            # Set observation shape.
-            def set_shape_obs(traj):
-                def set_elem_shape(obs):
-                    obs_shape = obs.get_shape()
-                    return tf.ensure_shape(obs, [seq_len] + obs_shape[1:])
+        # if for_rnn:
+        #     return dataset.map(
+        #         filter_episodes_rnn, num_parallel_calls=num_parallel_calls
+        #     )
+        # else:
+        dataset = dataset.map(filter_episodes, num_parallel_calls=num_parallel_calls)
+        # Set observation shape.
+        def set_shape_obs(traj):
+            def set_elem_shape(obs):
+                obs_shape = obs.get_shape()
+                return tf.ensure_shape(obs, [seq_len] + obs_shape[1:])
 
-                observation = tf.nest.map_structure(set_elem_shape, traj.observation)
-                return traj._replace(observation=observation)
+            observation = tf.nest.map_structure(set_elem_shape, traj.observation)
+            return traj._replace(observation=observation)
 
-            dataset = dataset.map(set_shape_obs, num_parallel_calls=num_parallel_calls)
+        dataset = dataset.map(set_shape_obs, num_parallel_calls=num_parallel_calls)
 
         # sequence_dataset = (
         #     sequence_dataset.repeat()
@@ -448,11 +446,45 @@ def train_eval(
     #     if eval_data:
     #         eval_data = eval_data.map(norm_function)
 
+    def convert_to_time_step(trajectory):
+        step_type = trajectory.step_type
+        reward = trajectory.reward
+        discount = trajectory.discount
+        observation = trajectory.observation
+
+        step_type = np.array(step_type[0].numpy(), dtype=np.int32)
+        reward = np.array(reward[0].numpy(), dtype=np.float32)
+        discount = np.array(discount[0].numpy(), dtype=np.float32)
+        observation = OrderedDict({k: v.numpy() for k, v in observation.items()})
+
+        time_step = TimeStep(step_type, reward, discount, observation)
+        return TimeStep(
+            step_type=tf.expand_dims(time_step.step_type, 0),
+            reward=tf.expand_dims(time_step.reward, 0),
+            discount=tf.expand_dims(time_step.discount, 0),
+            observation={
+                "human_pose": tf.expand_dims(time_step.observation["human_pose"], 0)
+            },
+        )
+
+    # convert_to_time_step(next(iter(train_data)))
+    # convert_to_time_step(next(iter(train_data)))
+
+    # train_data = train_data.map(
+    #     convert_to_time_step, num_parallel_calls=tf.data.AUTOTUNE
+    # )
+
+    # Loading the policy:
+    policy = tf.saved_model.load(policy_dir)
+
     # Doing inference with the policy:
     for trajectory in train_data:
-        print(trajectory)
-
-    action_pred = policy.action(time_step)
+        time_step = convert_to_time_step(trajectory)
+        # print(time_step)
+        action = policy.action(time_step).action
+        # policy_step = policy.distribution(time_step, ())
+        # action = policy_step.action.sample()[0]
+        print(action)
 
 
 #     # Create normalization layers for obs and action.
