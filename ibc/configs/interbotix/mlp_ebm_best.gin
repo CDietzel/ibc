@@ -20,10 +20,10 @@ train_eval.batch_size = 512
 train_eval.num_iterations = 100000
 train_eval.replay_capacity = 10000
 train_eval.eval_interval = 5000
-train_eval.eval_episodes = 100
+train_eval.eval_episodes = 20
 train_eval.learning_rate = 1e-3
 train_eval.goal_tolerance = 0.02
-train_eval.sequence_length = 2
+train_eval.sequence_length = 3
 train_eval.dataset_eval_fraction = 0.0
 
 # Config for sampling actions.
@@ -31,12 +31,13 @@ ImplicitBCAgent.num_counter_examples = 256  # training.
 IbcPolicy.num_action_samples = 16384
 train_eval.uniform_boundary_buffer = 0.05
 get_normalizers.nested_obs = True  # BlockPushing has nested
+
 compute_dataset_statistics.min_max_actions = True
 
 # Configs for cloning net.
 MLPEBM.layers = 'ResNetPreActivation'
 MLPEBM.width = 128
-MLPEBM.depth = 8
+MLPEBM.depth = 16
 MLPEBM.rate = 0.0
 ResNetLayer.normalizer = None
 

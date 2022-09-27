@@ -25,26 +25,25 @@ train_eval.learning_rate = 1e-3
 train_eval.goal_tolerance = 0.02
 train_eval.sequence_length = 3
 train_eval.dataset_eval_fraction = 0.0
-
-# Config for sampling actions.
-ImplicitBCAgent.num_counter_examples = 256  # training.
-IbcPolicy.num_action_samples = 16384
 train_eval.uniform_boundary_buffer = 0.05
-get_normalizers.nested_obs = True  # BlockPushing has nested
-get_normalizers.num_samples = 5000
+
+get_normalizers.nested_obs = True
+
 compute_dataset_statistics.min_max_actions = True
 
-# Configs for cloning net.
+
+ImplicitBCAgent.num_counter_examples = 256
+ImplicitBCAgent.fraction_langevin_samples = 0.0
+ImplicitBCAgent.compute_mse = True
+ImplicitBCAgent.add_grad_penalty = False
+
+IbcPolicy.num_action_samples = 16384
+IbcPolicy.use_langevin = False
+IbcPolicy.use_dfo = True
+
+
 MLPEBM.layers = 'ResNetPreActivation'
-MLPEBM.width = 128
+MLPEBM.width = 256
 MLPEBM.depth = 8
 MLPEBM.rate = 0.0
 ResNetLayer.normalizer = None
-
-
-# Need to not use langevin samples in agent or policy
-ImplicitBCAgent.add_grad_penalty = False
-ImplicitBCAgent.compute_mse = True
-ImplicitBCAgent.fraction_langevin_samples = 0.0
-IbcPolicy.use_langevin = False
-IbcPolicy.use_dfo = True

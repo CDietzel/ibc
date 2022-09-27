@@ -138,12 +138,9 @@ def train_eval(
     use_warmup=False,
 ):
     """Tests a BC agent on the given datasets."""
-    # if task is None:
-    #     raise ValueError("task argument must be set.")
-    # logging.info(("Using task:", task))  # GET TASK NAME
 
-    folder_num = 3
-    tag = "ibc_langevin_best"
+    folder_num = 4
+    tag = "ibc_dfo_best"
 
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
@@ -363,7 +360,10 @@ def train_eval(
             step_type=tf.expand_dims(tf.cast(step_type[0], tf.int32), 0),
             reward=tf.expand_dims(reward[0], 0),
             discount=tf.expand_dims(discount[0], 0),
-            observation={"human_pose": tf.expand_dims(observation["human_pose"], 0)},
+            observation={
+                "human_pose": tf.expand_dims(observation["human_pose"], 0),
+                "action": tf.expand_dims(observation["action"], 0),
+            },
         )
 
     def get_actual_action(trajectory):
@@ -416,7 +416,7 @@ def train_eval(
     actual_action_table.plot(ax=axes[1])
     plt.savefig(output_dir + "/plot.png")
     # plt.show(block=True)
-    # pass
+    pass
 
 
 def main(_):

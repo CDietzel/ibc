@@ -129,11 +129,12 @@ def train_eval(
     use_warmup=False,
 ):
     """Trains a BC agent on the given datasets."""
+
+    folder_num = 4
+
     if task is None:
         raise ValueError("task argument must be set.")
     logging.info(("Using task:", task))  # GET TASK NAME
-
-    folder_num = 3
 
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
@@ -185,17 +186,27 @@ def train_eval(
             (
                 "human_pose",
                 array_spec.BoundedArraySpec(
-                    shape=(2, 99),
+                    shape=(sequence_length, 36),
                     dtype=np.dtype("float32"),
                     name="observation/human_pose",
                     minimum=-1,
                     maximum=1,
                 ),
-            )
+            ),
+            (
+                "action",
+                array_spec.BoundedArraySpec(
+                    shape=(sequence_length, 5),
+                    dtype=np.dtype("float32"),
+                    name="observation/action",
+                    minimum=-2 * math.pi,
+                    maximum=2 * math.pi,
+                ),
+            ),
         ]
     )
     obs_tensor_spec = tensor_spec.from_spec(obs_tensor_spec)
-    # Action spec shape might be wrong, might need to be (2, 5) or something
+    # Action spec shape might be wrong, might need to be (sequence_length, 5) or something
     action_tensor_spec = array_spec.BoundedArraySpec(
         shape=(5,),
         dtype=np.dtype("float32"),
