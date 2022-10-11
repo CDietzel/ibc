@@ -374,6 +374,10 @@ def train_eval(
         convert_to_time_step, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False
     )
 
+    actual_action_dataset = train_data.map(
+        get_actual_action, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False
+    )
+
     # Loading the policy:
     policy = tf.saved_model.load(policy_dir)
 
@@ -381,30 +385,36 @@ def train_eval(
     def get_predicted_action(time_step):
         return policy.action(time_step).action
 
-    predicted_action_dataset = time_steps.map(
-        get_predicted_action, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False
-    )
+    # predicted_action_dataset = time_steps.map(
+    #     get_predicted_action, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False
+    # )
 
     predicted_action_list = []
     actual_action_list = []
-    for action in predicted_action_dataset:
-        predicted_action_list.append(action.numpy().tolist()[0])
-    # for time_step in train_data:
-    #     # time_step = convert_to_time_step(trajectory)
-    #     # print(time_step)
-    #     action = policy.action(time_step).action
-    #     # policy_step = policy.distribution(time_step, ())
-    #     # action = policy_step.action.sample()[0]
-    #     action = action.numpy().tolist()[0]
-    #     action_list.append(action)
 
-    actual_action_dataset = train_data.map(
-        get_actual_action, num_parallel_calls=tf.data.AUTOTUNE, deterministic=False
-    )
+    # for action in predicted_action_dataset:
+    #     predicted_action_list.append(action.numpy().tolist()[0])
 
-    pass
     for action in actual_action_dataset:
-        actual_action_list.append(action.numpy().tolist()[0])
+        actual_action_list.append(action[0].numpy().tolist())
+
+    for time_step in time_steps:
+        if not predicted_action_list:
+            # for action in time_step.observation["action"][0].numpy().tolist():
+            action = time_step.observation["action"][0].numpy().tolist()[-1]
+            for i in range(seq_len):
+                predicted_action_list.append(action)
+        prev_action = np.array(predicted_action_list[-seq_len:], dtype=np.float32)
+        time_step.observation["action"] = tf.expand_dims(prev_action, 0)
+        action = get_predicted_action(time_step)[0].numpy().tolist()
+        predicted_action_list.append(action)
+    del predicted_action_list[0]  # Doesn't make much sense why it lines up like this
+    del predicted_action_list[-(seq_len - 1) :]  # But whatever, it gives best results
+
+    # del predicted_action_list[: (seq_len - 1)]
+    # del predicted_action_list[-1]
+
+    # del predicted_action_list[:seq_len]
 
     joint_names = ["Waist", "shoulder", "elbow", "wrist_angle", "wrist_rotate"]
 
