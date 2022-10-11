@@ -139,8 +139,8 @@ def train_eval(
 ):
     """Tests a BC agent on the given datasets."""
 
-    folder_num = 4
-    tag = "ibc_dfo_best"
+    folder_num = 6
+    tag = "ibc_langevin_test"
 
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
