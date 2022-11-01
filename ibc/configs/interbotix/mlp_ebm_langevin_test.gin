@@ -18,7 +18,7 @@ train_eval.loss_type = 'ebm' # specifies we are training ebm.
 train_eval.network = 'MLPEBM'
 train_eval.batch_size = 512
 ImplicitBCAgent.num_counter_examples = 8
-train_eval.num_iterations = 50000
+train_eval.num_iterations = 10000
 train_eval.replay_capacity = 10000
 train_eval.eval_interval = 5000
 train_eval.eval_episodes = 20
@@ -37,6 +37,7 @@ IbcPolicy.use_dfo = False
 IbcPolicy.use_langevin = True
 IbcPolicy.optimize_again = True
 
+
 # Configs for cloning net.
 MLPEBM.layers = 'ResNetPreActivation'
 MLPEBM.width = 256
@@ -46,7 +47,6 @@ MLPEBM.dense_layer_type = 'regular'
 MLPEBM.activation = 'relu'
 ImplicitBCAgent.compute_mse = True
 ResNetLayer.normalizer = None
-
 
 grad_penalty.grad_margin = 1.0
 grad_penalty.only_apply_final_grad_penalty = True # Note:

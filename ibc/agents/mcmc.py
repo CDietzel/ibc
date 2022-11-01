@@ -260,15 +260,15 @@ def langevin_step(
     # step_size = l_lambda
     # noise = tf.random.normal(tf.shape(actions)) * noise_scale
     # default Langevin dynamics equation
-    de_dact = (
-        gradient_scale * l_lambda * de_dact
-        + tf.random.normal(tf.shape(actions)) * l_lambda * noise_scale
-    )
-    # (theoretically) corrected Langevin dynamics equation
     # de_dact = (
-    #     l_lambda * de_dact
-    #     + math.sqrt(2 * l_lambda) * tf.random.normal(tf.shape(actions)) * noise_scale
+    #     gradient_scale * l_lambda * de_dact
+    #     + tf.random.normal(tf.shape(actions)) * l_lambda * noise_scale
     # )
+    # (theoretically) corrected Langevin dynamics equation
+    de_dact = (
+        l_lambda * de_dact
+        + math.sqrt(2 * l_lambda) * tf.random.normal(tf.shape(actions)) * noise_scale
+    )
     delta_actions = stepsize * de_dact
 
     # Clip to box.

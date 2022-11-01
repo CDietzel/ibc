@@ -154,3 +154,5 @@ outputs/*
 
 models/*
 output/*
+old_models/*
+old_output/*

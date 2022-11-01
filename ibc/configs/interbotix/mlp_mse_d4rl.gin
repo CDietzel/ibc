@@ -17,18 +17,19 @@ train_eval.root_dir = '/tmp/ibc_logs/mlp_mse'
 train_eval.loss_type = 'mse' # specifies we are training mse.
 train_eval.network = 'MLPMSE'
 train_eval.batch_size = 512
-train_eval.sequence_length = 2
-train_eval.learning_rate = 5e-4
+train_eval.sequence_length = 3
+train_eval.learning_rate = 1e-3
+train_eval.decay_steps = 200
 
 train_eval.num_iterations = 100000
 train_eval.replay_capacity = 10000
 train_eval.eval_interval = 5000
-train_eval.eval_episodes = 100
+train_eval.eval_episodes = 20
 
-get_normalizers.nested_obs = True  # BlockPushing has nested
+get_normalizers.nested_obs = True  # Interbotix is nested
 
 # Configs for cloning net.
 MLPMSE.layers = 'ResNetPreActivation'
-MLPMSE.width = 1024
+MLPMSE.width = 256
 MLPMSE.depth = 8
 MLPMSE.rate = 0.1
