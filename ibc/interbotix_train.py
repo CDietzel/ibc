@@ -130,7 +130,7 @@ def train_eval(
 ):
     """Trains a BC agent on the given datasets."""
 
-    folder_num = 7
+    folder_num = 0
 
     if task is None:
         raise ValueError("task argument must be set.")

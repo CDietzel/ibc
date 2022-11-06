@@ -141,8 +141,9 @@ def train_eval(
 ):
     """Tests a BC agent on the given datasets."""
 
-    folder_num = 7
+    folder_num = 0
     tag = "ibc_langevin_d4rl"
+    # tag = "ibc_langevin_test"
     # tag = "ibc_dfo_test"
 
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
@@ -419,15 +420,15 @@ def train_eval(
 
     # del predicted_action_list[:seq_len]
 
-    # joint_names = ["Waist", "shoulder", "elbow", "wrist_angle", "wrist_rotate"]
+    joint_names = ["Waist", "shoulder", "elbow", "wrist_angle", "wrist_rotate"]
 
-    # predicted_action_table = pd.DataFrame(predicted_action_list, columns=joint_names)
-    # actual_action_table = pd.DataFrame(actual_action_list, columns=joint_names)
+    predicted_action_table = pd.DataFrame(predicted_action_list, columns=joint_names)
+    actual_action_table = pd.DataFrame(actual_action_list, columns=joint_names)
 
-    # _, axes = plt.subplots(nrows=1, ncols=2)
-    # predicted_action_table.plot(ax=axes[0])
-    # actual_action_table.plot(ax=axes[1])
-    # plt.savefig(output_dir + "/plot.png")
+    _, axes = plt.subplots(nrows=1, ncols=2)
+    predicted_action_table.plot(ax=axes[0])
+    actual_action_table.plot(ax=axes[1])
+    plt.savefig(output_dir + "/plot.png")
 
     with open(Path(output_dir) / str("pred.modulated"), "wb") as f:
         pickle.dump(np.array(predicted_action_list), f, protocol=pickle.HIGHEST_PROTOCOL)
