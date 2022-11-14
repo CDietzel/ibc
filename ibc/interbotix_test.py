@@ -141,13 +141,13 @@ def train_eval(
 ):
     """Tests a BC agent on the given datasets."""
 
-    # folder_num = 0
-    # folder_num = 1
-    # folder_num = 2
-    # folder_num = 3
-    # tag = "ibc_langevin_d4rl"
-    # tag = "mse_d4rl"
-    # tag = "ibc_langevin_test"
+    folder_num = 0
+    folder_num = 1
+    folder_num = 2
+    folder_num = 3
+    tag = "ibc_langevin_d4rl"
+    tag = "mse_d4rl"
+    tag = "ibc_langevin_test"
     tag = "mse_test"
 
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
@@ -399,6 +399,7 @@ def train_eval(
 
     predicted_action_list = []
     actual_action_list = []
+    actual_observation_list = []
 
     # for action in predicted_action_dataset:
     #     predicted_action_list.append(action.numpy().tolist()[0])
@@ -407,6 +408,10 @@ def train_eval(
         actual_action_list.append(action[0].numpy().tolist())
 
     for time_step in time_steps:
+        actual_observation_list.append(
+            time_step.observation["human_pose"][0][:, 22].numpy().tolist()
+        )
+
         if not predicted_action_list:
             # for action in time_step.observation["action"][0].numpy().tolist():
             action = time_step.observation["action"][0].numpy().tolist()[-1]
@@ -424,18 +429,27 @@ def train_eval(
 
     # del predicted_action_list[:seq_len]
 
+    output_filename = os.path.splitext(os.path.basename(path_to_shards[0]))[0]
+    dataset_template = os.path.splitext(os.path.basename(dataset_path))[0].split("*")
+    output_filename = output_filename[len(dataset_template[0]) :]
+    # output_file = output_file[:-len(dataset_template[-1])]
+
     joint_names = ["Waist", "shoulder", "elbow", "wrist_angle", "wrist_rotate"]
 
     predicted_action_table = pd.DataFrame(predicted_action_list, columns=joint_names)
     actual_action_table = pd.DataFrame(actual_action_list, columns=joint_names)
+    actual_observation_table = pd.DataFrame(actual_observation_list)
 
-    _, axes = plt.subplots(nrows=1, ncols=2)
-    predicted_action_table.plot(ax=axes[0])
+    _, axes = plt.subplots(nrows=1, ncols=3)
+    actual_observation_table.plot(ax=axes[0])
     actual_action_table.plot(ax=axes[1])
-    plt.savefig(output_dir + "/plot.png")
+    predicted_action_table.plot(ax=axes[2])
+    plt.savefig(output_dir + "/" + output_filename + ".png")
 
-    with open(Path(output_dir) / str("pred.modulated"), "wb") as f:
-        pickle.dump(np.array(predicted_action_list), f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(Path(output_dir) / (output_filename + str(".modulated")), "wb") as f:
+        pickle.dump(
+            np.array(predicted_action_list), f, protocol=pickle.HIGHEST_PROTOCOL
+        )
 
     # plt.show(block=True)
     pass
