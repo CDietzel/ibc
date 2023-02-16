@@ -156,3 +156,4 @@ models/*
 output/*
 old_models/*
 old_output/*
+logs/*

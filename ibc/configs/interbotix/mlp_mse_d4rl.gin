@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-train_eval.root_dir = '/tmp/ibc_logs/mlp_mse'
+train_eval.root_dir = '/home/locobot/Documents/Repos/ibc/ibc/logs'
 train_eval.loss_type = 'mse' # specifies we are training mse.
 train_eval.network = 'MLPMSE'
 train_eval.batch_size = 512

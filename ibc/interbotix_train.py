@@ -21,6 +21,8 @@ import functools
 import os
 import math
 from typing import OrderedDict
+from itertools import product, chain, repeat
+
 
 from absl import app
 from absl import flags
@@ -127,10 +129,11 @@ def train_eval(
     # -1 for 'use all'.
     max_data_shards=-1,
     use_warmup=False,
+    folder_num=0,
 ):
     """Trains a BC agent on the given datasets."""
 
-    folder_num = 2
+    # folder_num = 0
 
     if task is None:
         raise ValueError("task argument must be set.")
@@ -144,13 +147,13 @@ def train_eval(
         tf.io.gfile.makedirs(policy_dir)
 
     # Logging.
-    if add_time:
-        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    # if add_time:
+    #     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
     if tag:
         root_dir = os.path.join(root_dir, tag)
     if add_time:
-        root_dir = os.path.join(root_dir, current_time)  # DEFINES THE LOG DIRECTORY
+        root_dir = os.path.join(root_dir, str(folder_num))  # DEFINES THE LOG DIRECTORY
 
     # Saving the trained model.
     if tag:
@@ -178,7 +181,7 @@ def train_eval(
     #     action_tensor_spec,  # DEFINES TENSOR SPECS FOR ALL STATES/ACTIONS (IMPORTANT)
     #     time_step_tensor_spec,
     # ) = spec_utils.get_tensor_specs(
-    #     eval_envs[0]
+    #     eval_envs[0]=
     # )
 
     obs_tensor_spec = OrderedDict(
@@ -354,7 +357,7 @@ def train_eval(
     with tf.io.gfile.GFile(
         os.path.join(root_dir, "operative-gin-config.txt"), "wb"
     ) as f:
-        f.write(gin.operative_config_str())
+        f.write(gin.config_str())
 
     # Main train and eval loop.
     while train_step.numpy() < num_iterations:
@@ -481,34 +484,104 @@ def get_distributed_eval_data(data_fn, strategy):
 def main(_):
     logging.set_verbosity(logging.INFO)
 
-    gin.add_config_file_search_path(os.getcwd())
-    gin.parse_config_files_and_bindings(
-        FLAGS.gin_file,
-        FLAGS.gin_bindings,
-        # TODO(coreylynch): This is a temporary
-        # hack until we get proper distributed
-        # eval working. Remove it once we do.
-        skip_unknown=True,
-    )
+    ebm_params = {"gin_file": ["ibc/ibc/configs/interbotix/mlp_ebm_langevin_test.gin"],
+            "tag": ["ibc_langevin_test"],
+            "network_size": [[512, 4], [256, 8], [128, 16]],
+            "learning_rate": [1e-3, 5e-4, 1e-4],
+            "num_counter_examples": [8, 16]
+            }
 
-    # For TPU, FLAGS.tpu will be set with a TPU address and FLAGS.use_gpu
-    # will be False.
-    # For GPU, FLAGS.tpu will be None and FLAGS.use_gpu will be True.
-    strategy = strategy_utils.get_strategy(tpu=FLAGS.tpu, use_gpu=FLAGS.use_gpu)
+    # for EBM:
+    # hyperparams to train: MLPEBM.width, MLPEBM.depth,
+    # ImplicitBCAgent.num_counter_examples, 
+    # train_eval.learning_rate, train_eval.sequence_length
 
-    task = FLAGS.task or gin.REQUIRED
-    # If setting this to True, change `my_rangea in mcmc.py to `= range`
-    tf.config.experimental_run_functions_eagerly(False)
+    mse_params = {"gin_file": ["ibc/ibc/configs/interbotix/mlp_mse_test.gin"],
+        "tag": ["mse_test"],
+        "network_size": [[512, 4], [256, 8], [128, 16]],
+        "learning_rate": [1e-3, 5e-4, 1e-4],
+        "dropout_rate": [0, 0.1]
+        }
 
-    train_eval(
-        task=task,
-        tag=FLAGS.tag,
-        add_time=FLAGS.add_time,
-        viz_img=FLAGS.viz_img,
-        skip_eval=FLAGS.skip_eval,
-        shared_memory_eval=FLAGS.shared_memory_eval,
-        strategy=strategy,
-    )
+    ebm_keys, ebm_values = zip(*ebm_params.items())
+    mse_keys, mse_values = zip(*mse_params.items())
+    for i, (keys, values) in enumerate(chain(zip(repeat(ebm_keys), product(*ebm_values)), zip(repeat(mse_keys), product(*mse_values)))):
+        d = dict(zip(keys, values))
+        gin_file = [d["gin_file"]]
+        tag = d["tag"]
+        bindings = []
+        if d["tag"] == "ibc_langevin_test":
+            bindings.append(f"MLPEBM.width={d['network_size'][0]}")
+            bindings.append(f"MLPEBM.depth={d['network_size'][1]}")
+            bindings.append(f"train_eval.learning_rate={d['learning_rate']}")
+            bindings.append(f"ImplicitBCAgent.num_counter_examples={d['num_counter_examples']}")
+        elif d["tag"] == "mse_test":
+            bindings.append(f"MLPMSE.width={d['network_size'][0]}")
+            bindings.append(f"MLPMSE.depth={d['network_size'][1]}")
+            bindings.append(f"train_eval.learning_rate={d['learning_rate']}")
+            bindings.append(f"MLPMSE.rate={d['dropout_rate']}")
+        bindings.append("train_eval.dataset_path='ibc/data/interbotix_data/oracle_interbotix*.tfrecord'")
+        gin.clear_config()
+        gin.add_config_file_search_path(os.getcwd())
+        gin.parse_config_files_and_bindings(
+            gin_file,
+            bindings,
+            # TODO(coreylynch): This is a temporary
+            # hack until we get proper distributed
+            # eval working. Remove it once we do.
+            skip_unknown=True,
+        )
+
+        # For TPU, FLAGS.tpu will be set with a TPU address and FLAGS.use_gpu
+        # will be False.
+        # For GPU, FLAGS.tpu will be None and FLAGS.use_gpu will be True.
+        strategy = strategy_utils.get_strategy(tpu=FLAGS.tpu, use_gpu=FLAGS.use_gpu)
+
+        task = FLAGS.task or gin.REQUIRED
+        # If setting this to True, change `my_rangea in mcmc.py to `= range`
+        tf.config.experimental_run_functions_eagerly(False)
+        train_eval(
+            task=task,
+            tag=tag,
+            add_time=FLAGS.add_time,
+            viz_img=FLAGS.viz_img,
+            skip_eval=FLAGS.skip_eval,
+            shared_memory_eval=FLAGS.shared_memory_eval,
+            strategy=strategy,
+            folder_num=i
+        )
+
+# def main(_):
+#     logging.set_verbosity(logging.INFO)
+
+#     gin.add_config_file_search_path(os.getcwd())
+#     gin.parse_config_files_and_bindings(
+#         FLAGS.gin_file,
+#         FLAGS.gin_bindings,
+#         # TODO(coreylynch): This is a temporary
+#         # hack until we get proper distributed
+#         # eval working. Remove it once we do.
+#         skip_unknown=True,
+#     )
+
+#     # For TPU, FLAGS.tpu will be set with a TPU address and FLAGS.use_gpu
+#     # will be False.
+#     # For GPU, FLAGS.tpu will be None and FLAGS.use_gpu will be True.
+#     strategy = strategy_utils.get_strategy(tpu=FLAGS.tpu, use_gpu=FLAGS.use_gpu)
+
+#     task = FLAGS.task or gin.REQUIRED
+#     # If setting this to True, change `my_rangea in mcmc.py to `= range`
+#     tf.config.experimental_run_functions_eagerly(False)
+
+#     train_eval(
+#         task=task,
+#         tag=FLAGS.tag,
+#         add_time=FLAGS.add_time,
+#         viz_img=FLAGS.viz_img,
+#         skip_eval=FLAGS.skip_eval,
+#         shared_memory_eval=FLAGS.shared_memory_eval,
+#         strategy=strategy,
+#     )
 
 
 if __name__ == "__main__":
