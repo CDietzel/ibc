@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-train_eval.root_dir = '/home/locobot/Documents/Repos/ibc/ibc/logs'
+train_eval.root_dir = '/home/dietzelcc/Documents/Repos/ibc/ibc/logs'
 train_eval.loss_type = 'ebm' # specifies we are training ebm.
 train_eval.network = 'MLPEBM'
 train_eval.batch_size = 512
 ImplicitBCAgent.num_counter_examples = 8
-train_eval.num_iterations = 100
+train_eval.num_iterations = 100000
 train_eval.replay_capacity = 10000
 train_eval.eval_interval = 5000
 train_eval.eval_episodes = 20

@@ -154,10 +154,10 @@ def train_eval(
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
         tf.io.gfile.makedirs(root_dir)  # MAKE GFILE (PORTRABLE FILESYSTEM ABSTRACTION)
-    policy_dir = os.path.join("/home/locobot/Documents/Repos/ibc/ibc/", "models")
+    policy_dir = os.path.join("/home/dietzelcc/Documents/Repos/ibc/ibc/", "models")
     if not tf.io.gfile.exists(policy_dir):
         tf.io.gfile.makedirs(policy_dir)
-    output_dir = os.path.join("/home/locobot/Documents/Repos/ibc/ibc/", "output")
+    output_dir = os.path.join("/home/dietzelcc/Documents/Repos/ibc/ibc/", "output")
     if not tf.io.gfile.exists(output_dir):
         tf.io.gfile.makedirs(output_dir)
 

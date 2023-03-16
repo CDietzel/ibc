@@ -142,7 +142,7 @@ def train_eval(
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
         tf.io.gfile.makedirs(root_dir)  # MAKE GFILE (PORTRABLE FILESYSTEM ABSTRACTION)
-    policy_dir = os.path.join("/home/locobot/Documents/Repos/ibc/ibc/", "models")
+    policy_dir = os.path.join("/home/dietzelcc/Documents/Repos/ibc/ibc/", "models")
     if not tf.io.gfile.exists(policy_dir):
         tf.io.gfile.makedirs(policy_dir)
 
@@ -484,28 +484,40 @@ def get_distributed_eval_data(data_fn, strategy):
 def main(_):
     logging.set_verbosity(logging.INFO)
 
-    ebm_params = {"gin_file": ["ibc/ibc/configs/interbotix/mlp_ebm_langevin_test.gin"],
-            "tag": ["ibc_langevin_test"],
-            "network_size": [[512, 4], [256, 8], [128, 16]],
-            "learning_rate": [1e-3, 5e-4, 1e-4],
-            "num_counter_examples": [8, 16]
-            }
+    ebm_params = {
+        "gin_file": ["ibc/ibc/configs/interbotix/mlp_ebm_langevin_test.gin"],
+        "tag": ["ibc_langevin_test"],
+        "network_size": [[512, 4], [256, 8], [128, 16]],
+        "learning_rate": [1e-3, 5e-4, 1e-4],
+        "num_counter_examples": [8, 4],
+    }
 
     # for EBM:
     # hyperparams to train: MLPEBM.width, MLPEBM.depth,
-    # ImplicitBCAgent.num_counter_examples, 
+    # ImplicitBCAgent.num_counter_examples,
     # train_eval.learning_rate, train_eval.sequence_length
 
-    mse_params = {"gin_file": ["ibc/ibc/configs/interbotix/mlp_mse_test.gin"],
+    mse_params = {
+        "gin_file": ["ibc/ibc/configs/interbotix/mlp_mse_test.gin"],
         "tag": ["mse_test"],
         "network_size": [[512, 4], [256, 8], [128, 16]],
         "learning_rate": [1e-3, 5e-4, 1e-4],
-        "dropout_rate": [0, 0.1]
-        }
+        "dropout_rate": [0, 0.1],
+    }
+
+    seed = 0
+    folder_offset = 0
 
     ebm_keys, ebm_values = zip(*ebm_params.items())
     mse_keys, mse_values = zip(*mse_params.items())
-    for i, (keys, values) in enumerate(chain(zip(repeat(ebm_keys), product(*ebm_values)), zip(repeat(mse_keys), product(*mse_values)))):
+    for i, (keys, values) in enumerate(
+        chain(
+            zip(repeat(ebm_keys), product(*ebm_values)),
+            zip(repeat(mse_keys), product(*mse_values)),
+        )
+    ):
+        # if i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]:
+        #     continue
         d = dict(zip(keys, values))
         gin_file = [d["gin_file"]]
         tag = d["tag"]
@@ -514,13 +526,18 @@ def main(_):
             bindings.append(f"MLPEBM.width={d['network_size'][0]}")
             bindings.append(f"MLPEBM.depth={d['network_size'][1]}")
             bindings.append(f"train_eval.learning_rate={d['learning_rate']}")
-            bindings.append(f"ImplicitBCAgent.num_counter_examples={d['num_counter_examples']}")
+            bindings.append(
+                f"ImplicitBCAgent.num_counter_examples={d['num_counter_examples']}"
+            )
         elif d["tag"] == "mse_test":
             bindings.append(f"MLPMSE.width={d['network_size'][0]}")
             bindings.append(f"MLPMSE.depth={d['network_size'][1]}")
             bindings.append(f"train_eval.learning_rate={d['learning_rate']}")
             bindings.append(f"MLPMSE.rate={d['dropout_rate']}")
-        bindings.append("train_eval.dataset_path='ibc/data/interbotix_data/oracle_interbotix*.tfrecord'")
+        bindings.append(
+            "train_eval.dataset_path='ibc/data/interbotix_data/oracle_interbotix*.tfrecord'"
+        )
+        bindings.append(f"train_eval.seed={seed}")
         gin.clear_config()
         gin.add_config_file_search_path(os.getcwd())
         gin.parse_config_files_and_bindings(
@@ -548,8 +565,9 @@ def main(_):
             skip_eval=FLAGS.skip_eval,
             shared_memory_eval=FLAGS.shared_memory_eval,
             strategy=strategy,
-            folder_num=i
+            folder_num=i + folder_offset,
         )
+
 
 # def main(_):
 #     logging.set_verbosity(logging.INFO)
