@@ -18,22 +18,34 @@
 import collections
 import datetime
 import functools
+import math
 import os
 import pickle
-import math
+from itertools import chain, product, repeat
+from pathlib import Path
 from typing import OrderedDict
 
-from pathlib import Path
-from absl import app
-from absl import flags
-from absl import logging
 import gin
-from ibc.environments.block_pushing import (
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from absl import app, flags, logging
+from tf_agents.policies import policy_saver
+from tf_agents.specs import array_spec, tensor_spec
+from tf_agents.system import system_multiprocessing as multiprocessing
+from tf_agents.train.utils import spec_utils, strategy_utils, train_utils
+from tf_agents.trajectories import StepType
+from tf_agents.trajectories import time_step as ts
+from tf_agents.trajectories.time_step import StepType, TimeStep
+from tf_agents.trajectories.trajectory import Trajectory
+from tf_agents.utils import common, example_encoding, example_encoding_dataset
+
+from ibc.data import dataset as x100_dataset_tools
+from ibc.environments.block_pushing import (  # pylint: disable=unused-import
     block_pushing,
-)  # pylint: disable=unused-import
-from ibc.environments.block_pushing import (
     block_pushing_discontinuous,
-)  # pylint: disable=unused-import
+)
 from ibc.environments.particle import particle  # pylint: disable=unused-import
 from ibc.ibc import tasks
 from ibc.ibc.agents import ibc_policy  # pylint: disable=unused-import
@@ -46,27 +58,6 @@ from ibc.ibc.train import get_learner as learner_module
 from ibc.ibc.train import get_normalizers as normalizers_module
 from ibc.ibc.train import get_sampling_spec as sampling_spec_module
 from ibc.ibc.utils import make_video as video_module
-import tensorflow as tf
-import pandas as pd
-from tf_agents.trajectories import time_step as ts
-from tf_agents.system import system_multiprocessing as multiprocessing
-from tf_agents.train.utils import spec_utils
-from tf_agents.train.utils import strategy_utils
-from tf_agents.train.utils import train_utils
-from tf_agents.utils import common
-from tf_agents.specs import tensor_spec
-from tf_agents.specs import array_spec
-import numpy as np
-import matplotlib.pyplot as plt
-from tf_agents.policies import policy_saver
-from tf_agents.trajectories import StepType
-from tf_agents.trajectories.time_step import TimeStep
-from ibc.data import dataset as x100_dataset_tools
-from tf_agents.trajectories.time_step import StepType
-from tf_agents.trajectories.trajectory import Trajectory
-from tf_agents.utils import example_encoding
-from tf_agents.utils import example_encoding_dataset
-
 
 flags.DEFINE_string("tag", None, "Tag for the experiment. Appended to the root_dir.")
 flags.DEFINE_bool(
@@ -142,15 +133,6 @@ def train_eval(
 ):
     """Tests a BC agent on the given datasets."""
 
-    # folder_num = 0
-    # folder_num = 1
-    # folder_num = 2
-    # folder_num = 3
-    # tag = "ibc_langevin_d4rl"
-    # tag = "mse_d4rl"
-    # tag = "ibc_langevin_test"
-    # tag = "mse_test"
-
     tf.random.set_seed(seed)  # SETS SEED TO 0, MAYBE CONFIGURABLE??? DO I CARE?
     if not tf.io.gfile.exists(root_dir):
         tf.io.gfile.makedirs(root_dir)  # MAKE GFILE (PORTRABLE FILESYSTEM ABSTRACTION)
@@ -162,31 +144,25 @@ def train_eval(
         tf.io.gfile.makedirs(output_dir)
 
     # Logging.
-    if add_time:
-        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    # if add_time:
+    #     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
     if tag:
         root_dir = os.path.join(root_dir, tag)
     if add_time:
-        root_dir = os.path.join(root_dir, current_time)  # DEFINES THE LOG DIRECTORY
+        root_dir = os.path.join(root_dir, str(folder_num))
 
     # Saving the trained model.
     if tag:
         policy_dir = os.path.join(policy_dir, tag)
     if add_time:
-        policy_dir = os.path.join(
-            policy_dir, str(folder_num)
-        )  # DEFINES THE MODEL DIRECTORY
+        policy_dir = os.path.join(policy_dir, str(folder_num))
 
     # Saving the model outputs.
     if tag:
         output_dir = os.path.join(output_dir, tag)
     if add_time:
-        output_dir = os.path.join(
-            output_dir, str(folder_num)
-        )  # DEFINES THE MODEL DIRECTORY
-    if not tf.io.gfile.exists(output_dir):
-        tf.io.gfile.makedirs(output_dir)
+        output_dir = os.path.join(output_dir, str(folder_num))
 
     eval_fraction = dataset_eval_fraction
     flatten = flatten_action
@@ -309,6 +285,7 @@ def train_eval(
         #     )
         # else:
         dataset = dataset.map(filter_episodes, num_parallel_calls=num_parallel_calls)
+
         # Set observation shape.
         def set_shape_obs(traj):
             def set_elem_shape(obs):
@@ -410,7 +387,7 @@ def train_eval(
 
     for time_step in time_steps:
         actual_observation_list.append(
-            time_step.observation["human_pose"][0][:, 22].numpy().tolist()
+            time_step.observation["human_pose"][0][0, 7].numpy().tolist()
         )
 
         if not predicted_action_list:
@@ -431,8 +408,8 @@ def train_eval(
     # del predicted_action_list[:seq_len]
 
     output_filename = os.path.splitext(os.path.basename(path_to_shards[0]))[0]
-    dataset_template = os.path.splitext(os.path.basename(dataset_path))[0].split("*")
-    output_filename = output_filename[len(dataset_template[0]) :]
+    # dataset_template = os.path.splitext(os.path.basename(dataset_path))[0].split("*")
+    # output_filename = output_filename[len(dataset_template[0]) :]
     # output_file = output_file[:-len(dataset_template[-1])]
 
     joint_names = ["Waist", "shoulder", "elbow", "wrist_angle", "wrist_rotate"]
@@ -445,7 +422,12 @@ def train_eval(
     actual_observation_table.plot(ax=axes[0])
     actual_action_table.plot(ax=axes[1])
     predicted_action_table.plot(ax=axes[2])
-    plt.savefig(output_dir + "/" + output_filename + ".png")
+    plt.gcf().set_size_inches(10, 5)
+
+    if not tf.io.gfile.exists(output_dir):
+        tf.io.gfile.makedirs(output_dir)
+
+    plt.savefig(output_dir + "/" + output_filename + ".png", dpi=200)
 
     with open(Path(output_dir) / (output_filename + str(".modulated")), "wb") as f:
         pickle.dump(
@@ -459,34 +441,123 @@ def train_eval(
 def main(_):
     logging.set_verbosity(logging.INFO)
 
-    gin.add_config_file_search_path(os.getcwd())
-    gin.parse_config_files_and_bindings(
-        FLAGS.gin_file,
-        FLAGS.gin_bindings,
-        # TODO(coreylynch): This is a temporary
-        # hack until we get proper distributed
-        # eval working. Remove it once we do.
-        skip_unknown=True,
-    )
+    ebm_params = {
+        "gin_file": ["ibc/ibc/configs/interbotix/mlp_ebm_langevin_test.gin"],
+        "tag": ["ibc_langevin_test"],
+        "network_size": [[512, 4], [256, 8], [128, 16]],
+        "learning_rate": [1e-3, 5e-4, 1e-4],
+        "num_counter_examples": [8, 4],
+    }
 
-    # For TPU, FLAGS.tpu will be set with a TPU address and FLAGS.use_gpu
-    # will be False.
-    # For GPU, FLAGS.tpu will be None and FLAGS.use_gpu will be True.
-    strategy = strategy_utils.get_strategy(tpu=FLAGS.tpu, use_gpu=FLAGS.use_gpu)
+    # for EBM:
+    # hyperparams to train: MLPEBM.width, MLPEBM.depth,
+    # ImplicitBCAgent.num_counter_examples,
+    # train_eval.learning_rate, train_eval.sequence_length
 
-    task = FLAGS.task or gin.REQUIRED
-    # If setting this to True, change `my_rangea in mcmc.py to `= range`
-    tf.config.experimental_run_functions_eagerly(False)
+    mse_params = {
+        "gin_file": ["ibc/ibc/configs/interbotix/mlp_mse_test.gin"],
+        "tag": ["mse_test"],
+        "network_size": [[512, 4], [256, 8], [128, 16]],
+        "learning_rate": [1e-3, 5e-4, 1e-4],
+        "dropout_rate": [0, 0.1],
+    }
 
-    train_eval(
-        task=task,
-        tag=FLAGS.tag,
-        add_time=FLAGS.add_time,
-        viz_img=FLAGS.viz_img,
-        skip_eval=FLAGS.skip_eval,
-        shared_memory_eval=FLAGS.shared_memory_eval,
-        strategy=strategy,
-    )
+    seed = 0
+    folder_offset = 0
+
+    ebm_keys, ebm_values = zip(*ebm_params.items())
+    mse_keys, mse_values = zip(*mse_params.items())
+    for i, (keys, values) in enumerate(
+        chain(
+            zip(repeat(ebm_keys), product(*ebm_values)),
+            zip(repeat(mse_keys), product(*mse_values)),
+        )
+    ):
+        for test_file_num in range(1, 6):
+            # if i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]:
+            #     continue
+            d = dict(zip(keys, values))
+            gin_file = [d["gin_file"]]
+            tag = d["tag"]
+            bindings = []
+            if d["tag"] == "ibc_langevin_test":
+                bindings.append(f"MLPEBM.width={d['network_size'][0]}")
+                bindings.append(f"MLPEBM.depth={d['network_size'][1]}")
+                bindings.append(f"train_eval.learning_rate={d['learning_rate']}")
+                bindings.append(
+                    f"ImplicitBCAgent.num_counter_examples={d['num_counter_examples']}"
+                )
+            elif d["tag"] == "mse_test":
+                bindings.append(f"MLPMSE.width={d['network_size'][0]}")
+                bindings.append(f"MLPMSE.depth={d['network_size'][1]}")
+                bindings.append(f"train_eval.learning_rate={d['learning_rate']}")
+                bindings.append(f"MLPMSE.rate={d['dropout_rate']}")
+            bindings.append(
+                f"train_eval.dataset_path='ibc/data/interbotix_test_data/oracle_interbotix_test{test_file_num}_n.tfrecord'"
+            )
+            bindings.append(f"train_eval.seed={seed}")
+            gin.clear_config()
+            gin.add_config_file_search_path(os.getcwd())
+            gin.parse_config_files_and_bindings(
+                gin_file,
+                bindings,
+                # TODO(coreylynch): This is a temporary
+                # hack until we get proper distributed
+                # eval working. Remove it once we do.
+                skip_unknown=True,
+            )
+
+            # For TPU, FLAGS.tpu will be set with a TPU address and FLAGS.use_gpu
+            # will be False.
+            # For GPU, FLAGS.tpu will be None and FLAGS.use_gpu will be True.
+            strategy = strategy_utils.get_strategy(tpu=FLAGS.tpu, use_gpu=FLAGS.use_gpu)
+
+            task = FLAGS.task or gin.REQUIRED
+            # If setting this to True, change `my_rangea in mcmc.py to `= range`
+            tf.config.experimental_run_functions_eagerly(False)
+            train_eval(
+                task=task,
+                tag=tag,
+                add_time=FLAGS.add_time,
+                viz_img=FLAGS.viz_img,
+                skip_eval=FLAGS.skip_eval,
+                shared_memory_eval=FLAGS.shared_memory_eval,
+                strategy=strategy,
+                folder_num=i + folder_offset,
+            )
+
+
+# def main(_):
+#     logging.set_verbosity(logging.INFO)
+
+#     gin.add_config_file_search_path(os.getcwd())
+#     gin.parse_config_files_and_bindings(
+#         FLAGS.gin_file,
+#         FLAGS.gin_bindings,
+#         # TODO(coreylynch): This is a temporary
+#         # hack until we get proper distributed
+#         # eval working. Remove it once we do.
+#         skip_unknown=True,
+#     )
+
+#     # For TPU, FLAGS.tpu will be set with a TPU address and FLAGS.use_gpu
+#     # will be False.
+#     # For GPU, FLAGS.tpu will be None and FLAGS.use_gpu will be True.
+#     strategy = strategy_utils.get_strategy(tpu=FLAGS.tpu, use_gpu=FLAGS.use_gpu)
+
+#     task = FLAGS.task or gin.REQUIRED
+#     # If setting this to True, change `my_rangea in mcmc.py to `= range`
+#     tf.config.experimental_run_functions_eagerly(False)
+
+#     train_eval(
+#         task=task,
+#         tag=FLAGS.tag,
+#         add_time=FLAGS.add_time,
+#         viz_img=FLAGS.viz_img,
+#         skip_eval=FLAGS.skip_eval,
+#         shared_memory_eval=FLAGS.shared_memory_eval,
+#         strategy=strategy,
+#     )
 
 
 if __name__ == "__main__":

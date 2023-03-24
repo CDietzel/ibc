@@ -18,22 +18,26 @@
 import collections
 import datetime
 import functools
-import os
 import math
+import os
+from itertools import chain, product, repeat
 from typing import OrderedDict
-from itertools import product, chain, repeat
 
-
-from absl import app
-from absl import flags
-from absl import logging
 import gin
-from ibc.environments.block_pushing import (
+import numpy as np
+import tensorflow as tf
+from absl import app, flags, logging
+from tf_agents.policies import policy_saver
+from tf_agents.specs import array_spec, tensor_spec
+from tf_agents.system import system_multiprocessing as multiprocessing
+from tf_agents.train.utils import spec_utils, strategy_utils, train_utils
+from tf_agents.trajectories import time_step as ts
+from tf_agents.utils import common
+
+from ibc.environments.block_pushing import (  # pylint: disable=unused-import
     block_pushing,
-)  # pylint: disable=unused-import
-from ibc.environments.block_pushing import (
     block_pushing_discontinuous,
-)  # pylint: disable=unused-import
+)
 from ibc.environments.particle import particle  # pylint: disable=unused-import
 from ibc.ibc import tasks
 from ibc.ibc.agents import ibc_policy  # pylint: disable=unused-import
@@ -46,18 +50,6 @@ from ibc.ibc.train import get_learner as learner_module
 from ibc.ibc.train import get_normalizers as normalizers_module
 from ibc.ibc.train import get_sampling_spec as sampling_spec_module
 from ibc.ibc.utils import make_video as video_module
-import tensorflow as tf
-from tf_agents.trajectories import time_step as ts
-from tf_agents.system import system_multiprocessing as multiprocessing
-from tf_agents.train.utils import spec_utils
-from tf_agents.train.utils import strategy_utils
-from tf_agents.train.utils import train_utils
-from tf_agents.utils import common
-from tf_agents.specs import tensor_spec
-from tf_agents.specs import array_spec
-import numpy as np
-from tf_agents.policies import policy_saver
-
 
 flags.DEFINE_string("tag", None, "Tag for the experiment. Appended to the root_dir.")
 flags.DEFINE_bool(
@@ -153,36 +145,13 @@ def train_eval(
     if tag:
         root_dir = os.path.join(root_dir, tag)
     if add_time:
-        root_dir = os.path.join(root_dir, str(folder_num))  # DEFINES THE LOG DIRECTORY
+        root_dir = os.path.join(root_dir, str(folder_num))
 
     # Saving the trained model.
     if tag:
         policy_dir = os.path.join(policy_dir, tag)
     if add_time:
-        policy_dir = os.path.join(
-            policy_dir, str(folder_num)
-        )  # DEFINES THE MODEL DIRECTORY
-
-    # Define eval env.
-    # eval_envs = []
-    # env_names = []
-    # for task_id in task:  # GET THE ENVIRONMENT, WE DON'T NEED THIS (DOING PURE BC)
-    #     env_name = eval_env_module.get_env_name(task_id, shared_memory_eval, image_obs)
-    #     logging.info(("Got env name:", env_name))
-    #     eval_env = eval_env_module.get_eval_env(
-    #         env_name, sequence_length, goal_tolerance, num_envs
-    #     )
-    #     logging.info(("Got eval_env:", eval_env))
-    #     eval_envs.append(eval_env)
-    #     env_names.append(env_name)
-
-    # (
-    #     obs_tensor_spec,
-    #     action_tensor_spec,  # DEFINES TENSOR SPECS FOR ALL STATES/ACTIONS (IMPORTANT)
-    #     time_step_tensor_spec,
-    # ) = spec_utils.get_tensor_specs(
-    #     eval_envs[0]=
-    # )
+        policy_dir = os.path.join(policy_dir, str(folder_num))
 
     obs_tensor_spec = OrderedDict(
         [
@@ -209,7 +178,6 @@ def train_eval(
         ]
     )
     obs_tensor_spec = tensor_spec.from_spec(obs_tensor_spec)
-    # Action spec shape might be wrong, might need to be (sequence_length, 5) or something
     action_tensor_spec = array_spec.BoundedArraySpec(
         shape=(5,),
         dtype=np.dtype("float32"),
@@ -221,9 +189,6 @@ def train_eval(
     time_step_tensor_spec = ts.time_step_spec(obs_tensor_spec)
 
     # Compute normalization info from training data.
-    # CREATES A FUNCTION TO NORMALIZE TRAINING DATA, COMPLEX, USES LAMBDAS
-    # NEEDS FURTHER STUDY (MAYBE REPLACE WITH LESS GENERAL/SIMPLER APPROACH)
-    # ALTERNATIVELY MAYBE JUST REUSE THIS EXACT CODE
     create_train_and_eval_fns_unnormalized = data_module.get_data_fns(
         dataset_path,
         sequence_length,
@@ -323,29 +288,6 @@ def train_eval(
             strategy,
         )
 
-        # Define eval.
-        # eval_actors, eval_success_metrics = [], []
-        # for eval_env, env_name in zip(eval_envs, env_names):
-        #     env_name_clean = env_name.replace("/", "_")
-        #     # ACTOR MEDIATES BETWEEN POLICY AND ENVIRONMENT
-        #     # WE DON'T HAVE ENVIRONMENT, SO THIS WILL HAVE TO GO AWAY
-        #     # PROBABLY JUST DON'T EVAL ANYTHING AT ALL,
-        #     # JUST BLINDLY TRAIN AND CROSS OUR FINGERS
-        #     eval_actor, success_metric = eval_actor_module.get_eval_actor(
-        #         agent,
-        #         env_name,
-        #         eval_env,
-        #         train_step,
-        #         eval_episodes,
-        #         root_dir,
-        #         viz_img,
-        #         num_envs,
-        #         strategy,
-        #         summary_dir_suffix=env_name_clean,
-        #     )
-        #     eval_actors.append(eval_actor)
-        #     eval_success_metrics.append(success_metric)
-
         get_eval_loss = tf.function(agent.get_eval_loss)
 
         # Get summary writer for aggregated metrics.
@@ -372,51 +314,6 @@ def train_eval(
         ):
             # Run a validation step.
             validation_step(dist_eval_data_iter, bc_learner, train_step, get_eval_loss)
-
-        # # WILL NEED TO REMOVE THIS FOR LOOP, WE CAN'T EVAL BECAUSE NO ENVIRONMENT
-        # if not skip_eval and train_step.numpy() % eval_interval == 0:
-
-        #     all_metrics = []
-        #     for eval_env, eval_actor, env_name, success_metric in zip(
-        #         eval_envs, eval_actors, env_names, eval_success_metrics
-        #     ):
-        #         # Run evaluation.
-        #         metrics = evaluation_step(
-        #             eval_episodes,
-        #             eval_env,
-        #             eval_actor,
-        #             name_scope_suffix=f"_{env_name}",
-        #         )
-        #         all_metrics.append(metrics)
-
-        #         # rendering on some of these envs is broken
-        #         if FLAGS.video and "kitchen" not in task:
-        #             if "PARTICLE" in task:
-        #                 # A seed with spread-out goals is more clear to visualize.
-        #                 eval_env.seed(42)
-        #             # Write one eval video.
-        #             video_module.make_video(
-        #                 agent,
-        #                 eval_env,
-        #                 root_dir,
-        #                 step=train_step.numpy(),
-        #                 strategy=strategy,
-        #             )
-
-        #     metric_results = collections.defaultdict(list)
-        #     for env_metrics in all_metrics:
-        #         for metric in env_metrics:
-        #             metric_results[metric.name].append(metric.result())
-
-        #     with summary_writer.as_default(), common.soft_device_placement(), tf.summary.record_if(
-        #         lambda: True
-        #     ):
-        #         for key, value in metric_results.items():
-        #             tf.summary.scalar(
-        #                 name=os.path.join("AggregatedMetrics/", key),
-        #                 data=sum(value) / len(value),
-        #                 step=train_step,
-        #             )
 
     # Saving the policy:
     tf_policy_saver = policy_saver.PolicySaver(agent.policy)
