@@ -428,6 +428,7 @@ def train_eval(
         tf.io.gfile.makedirs(output_dir)
 
     plt.savefig(output_dir + "/" + output_filename + ".png", dpi=200)
+    plt.close("all")
 
     with open(Path(output_dir) / (output_filename + str(".modulated")), "wb") as f:
         pickle.dump(
